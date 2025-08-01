@@ -8,8 +8,13 @@ module.exports = {
     .setName('setemoji')
     .setDescription('🔧 Chỉ Owner dùng để đổi emoji mặc định cho embed')
     .addStringOption(option =>
-      option.setName('emoji')
-        .setDescription('Emoji bạn muốn sử dụng (ví dụ: 🧩)')
+      option.setName('default_emoji')
+        .setDescription('Emoji mặc định hiện tại (hiển thị trực tiếp)')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option.setName('replacement_emoji')
+        .setDescription('Emoji thay thế từ server')
         .setRequired(true)
     ),
 
@@ -22,12 +27,34 @@ module.exports = {
       });
     }
 
-    const emoji = interaction.options.getString('emoji');
+    const defaultEmoji = interaction.options.getString('default_emoji');
+    const replacementEmoji = interaction.options.getString('replacement_emoji');
 
-    saveJSON(emojiPath, { emoji });
+    // Validate that the replacement emoji is from the server
+    const guild = interaction.guild;
+    const serverEmojis = guild.emojis.cache;
+    
+    // Check if the replacement emoji is a custom server emoji
+    const isCustomEmoji = replacementEmoji.match(/<a?:.+?:\d+>/);
+    if (isCustomEmoji) {
+      const emojiId = replacementEmoji.match(/\d+/)[0];
+      const emoji = serverEmojis.get(emojiId);
+      if (!emoji) {
+        return interaction.reply({
+          content: '❌ Emoji thay thế phải là emoji từ server này.',
+          flags: 64 // Ephemeral flag
+        });
+      }
+    }
+
+    // Save the new emoji configuration
+    saveJSON(emojiPath, { 
+      emoji: replacementEmoji,
+      defaultEmoji: defaultEmoji 
+    });
 
     await interaction.reply({
-      content: `✅ Đã thay đổi emoji mặc định thành: ${emoji}`,
+      content: `✅ Đã thay đổi emoji từ ${defaultEmoji} thành ${replacementEmoji}`,
       flags: 64 // Ephemeral flag
     });
   }

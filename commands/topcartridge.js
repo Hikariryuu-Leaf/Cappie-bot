@@ -29,7 +29,8 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setTitle(`${embedConfig.emojis.top.cartridge} Top 10 Cartridge`)
       .setColor(embedConfig.colors.top)
-      .setThumbnail(embedConfig.defaultBanner)
+      .setThumbnail(embedConfig.getBanner(interaction.user.id))
+      .setImage(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
       .setTimestamp();
 
     let rank = 1;
@@ -42,6 +43,6 @@ module.exports = {
       rank++;
     }
 
-    await interaction.reply({ embeds: [embed], flags: 64 }); // Ephemeral flag
+    await interaction.reply({ embeds: [embed] }); // Public embed
   }
 };

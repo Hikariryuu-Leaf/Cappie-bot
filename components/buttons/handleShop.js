@@ -17,7 +17,8 @@ module.exports = {
         .setTitle(`${embedConfig.emojis.shop.title} Shop Đổi Quà`)
         .setColor(embedConfig.colors.shop)
         .setDescription('Chọn phần thưởng bạn muốn đổi từ Cartridge')
-        .setThumbnail(embedConfig.defaultBanner)
+        .setThumbnail(embedConfig.getBanner(interaction.user.id))
+        .setImage(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
         .setFooter({ text: `Bạn có thể nhấn đổi nếu đủ Cartridge.` });
 
       const rows = [];

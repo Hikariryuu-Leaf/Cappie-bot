@@ -2,6 +2,9 @@ module.exports = {
   // Default banner for all embeds
   defaultBanner: 'https://cdn.discordapp.com/attachments/1342373535284330519/1400905468196687995/coo-mita-miside.gif',
   
+  // User-specific banners
+  userBanners: {},
+  
   // Emojis for different commands
   emojis: {
     // Diemdanh command
@@ -46,5 +49,20 @@ module.exports = {
     profile: 0x3399ff,
     top: 0xf1c40f,
     voice: 0x3498db
+  },
+  
+  // Get banner for specific user
+  getBanner(userId) {
+    return this.userBanners[userId] || this.defaultBanner;
+  },
+  
+  // Set banner for specific user
+  setUserBanner(userId, bannerUrl) {
+    this.userBanners[userId] = bannerUrl;
+  },
+  
+  // Remove user banner
+  removeUserBanner(userId) {
+    delete this.userBanners[userId];
   }
 }; 

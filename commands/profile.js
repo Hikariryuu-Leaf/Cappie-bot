@@ -42,7 +42,8 @@ module.exports = {
       .setColor(embedConfig.colors.profile)
       .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
       .setTitle(`${emoji} Hồ sơ của bạn`)
-      .setThumbnail(embedConfig.defaultBanner)
+      .setThumbnail(embedConfig.getBanner(interaction.user.id))
+      .setImage(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
       .addFields(
         { name: `${embedConfig.emojis.profile.cartridge} Tổng Cartridge`, value: `\`${userData.cartridge} ${emoji}\``, inline: true },
         { name: `${embedConfig.emojis.profile.voice} Tổng voice`, value: `\`${voiceTimeFormatted}\``, inline: true },
@@ -60,8 +61,8 @@ module.exports = {
 
     await interaction.reply({
       embeds: [embed],
-      components: [row],
-      flags: 64 // Ephemeral flag
+      components: [row]
+      // Removed ephemeral flag to make it public
     });
   }
 };

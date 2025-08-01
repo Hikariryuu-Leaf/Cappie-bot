@@ -45,7 +45,8 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setTitle(`${embedConfig.emojis.shop.title} Đổi quà: ${itemName}`)
       .setColor(embedConfig.colors.success)
-      .setThumbnail(embedConfig.defaultBanner)
+      .setThumbnail(embedConfig.getBanner(userId))
+      .setImage(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
       .addFields(
         { name: 'Người đổi', value: `<@${userId}> (${userId})`, inline: true },
         { name: 'Phần thưởng', value: itemName, inline: true },

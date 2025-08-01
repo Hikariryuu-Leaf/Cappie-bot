@@ -55,7 +55,8 @@ module.exports = {
       .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
       .setTitle(`${embedConfig.emojis.diemdanh.success} Điểm danh thành công!`)
       .setDescription(`Bạn đã nhận được **${reward} Cartridge** ${emoji}!\nTổng Cartridge: **${users[userId].cartridge}**`)
-      .setThumbnail(embedConfig.defaultBanner)
+      .setThumbnail(embedConfig.getBanner(interaction.user.id))
+      .setImage(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
       .addFields(
         { name: `${embedConfig.emojis.diemdanh.reward} Phần thưởng`, value: `${reward} ${emoji}`, inline: true },
         { name: `${embedConfig.emojis.diemdanh.nitro} Nitro Bonus`, value: hasNitro ? '✅ Có' : '❌ Không', inline: true },

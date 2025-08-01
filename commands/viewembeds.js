@@ -21,6 +21,7 @@ module.exports = {
       .setThumbnail(embedConfig.defaultBanner)
       .addFields(
         { name: '📷 Banner mặc định', value: embedConfig.defaultBanner, inline: false },
+        { name: '👥 Banner tùy chỉnh', value: Object.keys(embedConfig.userBanners).length > 0 ? `${Object.keys(embedConfig.userBanners).length} user có banner tùy chỉnh` : 'Không có', inline: false },
         { name: '🎨 Màu sắc', value: Object.entries(embedConfig.colors).map(([key, value]) => `${key}: #${value.toString(16).padStart(6, '0')}`).join('\n'), inline: false },
         { name: '😊 Emojis', value: 'Sử dụng `/setembedemoji` để xem và thay đổi emojis', inline: false }
       )
