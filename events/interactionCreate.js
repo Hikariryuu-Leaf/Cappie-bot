@@ -46,7 +46,11 @@ module.exports = {
       }
 
       // Defer reply to prevent timeout for commands that might take time
-      await safeDefer(interaction, { flags: 64 });
+      // For commands that should be visible to everyone, don't use ephemeral flag
+      const publicCommands = ['profile', 'topcartridge', 'topvoice'];
+      const shouldBeEphemeral = !publicCommands.includes(interaction.commandName);
+      
+      await safeDefer(interaction, { flags: shouldBeEphemeral ? 64 : 0 });
 
       try {
         await command.execute(interaction, interaction.client);

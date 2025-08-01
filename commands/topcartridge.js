@@ -42,9 +42,8 @@ module.exports = {
       rank++;
     }
 
-    await interaction.reply({ 
-      embeds: [embed],
-      ephemeral: false 
+    await interaction.editReply({ 
+      embeds: [embed]
     });
   }
 };

@@ -59,10 +59,9 @@ module.exports = {
         .setStyle(ButtonStyle.Success)
     );
 
-    await interaction.reply({
+    await interaction.editReply({
       embeds: [embed],
-      components: [row],
-      ephemeral: false
+      components: [row]
     });
   }
 };
