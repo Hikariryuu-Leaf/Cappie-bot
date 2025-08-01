@@ -42,6 +42,9 @@ module.exports = {
       rank++;
     }
 
-    await interaction.editReply({ embeds: [embed] }); // Edit the deferred reply
+    await interaction.reply({ 
+      embeds: [embed],
+      ephemeral: false 
+    });
   }
 };

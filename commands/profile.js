@@ -59,10 +59,10 @@ module.exports = {
         .setStyle(ButtonStyle.Success)
     );
 
-    await interaction.editReply({
+    await interaction.reply({
       embeds: [embed],
-      components: [row]
-      // Edit the deferred reply
+      components: [row],
+      ephemeral: false
     });
   }
 };
