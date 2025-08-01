@@ -17,7 +17,7 @@ module.exports = {
     if (interaction.user.id !== ownerId) {
       return interaction.reply({
         content: '❌ Bạn không có quyền sử dụng lệnh này.',
-        ephemeral: true
+        flags: 64 // Ephemeral flag
       });
     }
 
@@ -27,7 +27,7 @@ module.exports = {
 
     await interaction.reply({
       content: `✅ Đã thay đổi emoji mặc định thành: ${emoji}`,
-      ephemeral: true
+      flags: 64 // Ephemeral flag
     });
   }
 };

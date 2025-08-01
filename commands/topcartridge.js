@@ -19,7 +19,7 @@ module.exports = {
     if (sorted.length === 0) {
       return interaction.reply({
         content: '❌ Không có người dùng nào có Cartridge.',
-        ephemeral: true
+        flags: 64 // Ephemeral flag
       });
     }
 
@@ -41,6 +41,6 @@ module.exports = {
       rank++;
     }
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [embed], flags: 64 }); // Ephemeral flag
   }
 };

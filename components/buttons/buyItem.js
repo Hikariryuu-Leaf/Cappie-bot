@@ -23,7 +23,7 @@ module.exports = {
     const item = shopItems[itemIndex];
 
     if (!item) {
-      return interaction.reply({ content: '❌ Phần thưởng không tồn tại.', ephemeral: true });
+      return interaction.reply({ content: '❌ Phần thưởng không tồn tại.', flags: 64 }); // Ephemeral flag
     }
 
     const [itemName, price] = item;
@@ -32,7 +32,7 @@ module.exports = {
     if (user.cartridge < price) {
       return interaction.reply({
         content: `❌ Bạn không đủ ${emoji}. Cần ${price}, bạn có ${user.cartridge}.`,
-        ephemeral: true
+        flags: 64 // Ephemeral flag
       });
     }
 
@@ -86,7 +86,7 @@ module.exports = {
 
     await interaction.reply({
       content: `✅ Bạn đã đổi thành công phần thưởng **${itemName}** với giá **${price} ${emoji}**!`,
-      ephemeral: true
+      flags: 64 // Ephemeral flag
     });
   }
 };

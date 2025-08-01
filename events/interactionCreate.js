@@ -8,7 +8,10 @@ module.exports = {
       // Slash command
       if (interaction.isChatInputCommand()) {
         const command = interaction.client.commands.get(interaction.commandName);
-        if (!command) return;
+        if (!command) {
+          console.warn(`[WARN] Command not found: ${interaction.commandName}`);
+          return;
+        }
 
         await command.execute(interaction, interaction.client);
       }
@@ -25,6 +28,7 @@ module.exports = {
             await buyItemHandler.execute(interaction, interaction.client);
             return;
           }
+          console.warn(`[WARN] Button handler not found: ${interaction.customId}`);
           return;
         }
         
@@ -32,11 +36,17 @@ module.exports = {
       }
     } catch (error) {
       console.error('❌ Lỗi xử lý interaction:', error);
+      
+      // Only reply if the interaction hasn't been responded to yet
       if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({ 
-          content: 'Đã xảy ra lỗi khi xử lý lệnh.', 
-          ephemeral: true 
-        });
+        try {
+          await interaction.reply({ 
+            content: 'Đã xảy ra lỗi khi xử lý lệnh.', 
+            flags: 64 // Ephemeral flag
+          });
+        } catch (replyError) {
+          console.error('❌ Không thể gửi error reply:', replyError);
+        }
       }
     }
   }

@@ -20,7 +20,7 @@ module.exports = {
     if (interaction.user.id !== config.ownerId) {
       return interaction.reply({ 
         content: '❌ Bạn không có quyền sử dụng lệnh này.', 
-        ephemeral: true 
+        flags: 64 // Ephemeral flag
       });
     }
 
@@ -34,13 +34,13 @@ module.exports = {
 
       await interaction.reply({
         content: `✅ Đã cập nhật phần quà **${ten}** với giá **${gia}** Cartridge.`,
-        ephemeral: true
+        flags: 64 // Ephemeral flag
       });
     } catch (error) {
       console.error('Lỗi khi cập nhật shop:', error);
       await interaction.reply({
         content: '❌ Đã xảy ra lỗi khi cập nhật shop.',
-        ephemeral: true
+        flags: 64 // Ephemeral flag
       });
     }
   }

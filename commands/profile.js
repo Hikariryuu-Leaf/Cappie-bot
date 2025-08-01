@@ -59,7 +59,7 @@ module.exports = {
     await interaction.reply({
       embeds: [embed],
       components: [row],
-      ephemeral: true
+      flags: 64 // Ephemeral flag
     });
   }
 };

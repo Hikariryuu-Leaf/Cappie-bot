@@ -36,7 +36,7 @@ module.exports = {
 
       return interaction.reply({
         content: `🕓 Bạn đã điểm danh rồi. Hãy quay lại sau **${hours}h ${minutes}m**.`,
-        ephemeral: true
+        flags: 64 // Ephemeral flag
       });
     }
 
@@ -61,6 +61,6 @@ module.exports = {
       )
       .setTimestamp();
 
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    return interaction.reply({ embeds: [embed], flags: 64 }); // Ephemeral flag
   }
 };

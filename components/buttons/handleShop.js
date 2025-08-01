@@ -25,7 +25,7 @@ module.exports = {
         embed.setDescription('❌ Hiện tại không có phần thưởng nào trong shop.');
         return await interaction.reply({
           embeds: [embed],
-          ephemeral: true
+          flags: 64 // Ephemeral flag
         });
       }
 
@@ -49,13 +49,13 @@ module.exports = {
       await interaction.reply({
         embeds: [embed],
         components: rows,
-        ephemeral: true
+        flags: 64 // Ephemeral flag
       });
     } catch (err) {
       console.error('❌ Lỗi khi mở shop:', err);
       await interaction.reply({
         content: 'Đã xảy ra lỗi khi mở shop. Vui lòng thử lại sau!',
-        ephemeral: true
+        flags: 64 // Ephemeral flag
       });
     }
   }

@@ -70,33 +70,7 @@ client.once('ready', () => {
   voiceTracker.start(client);
 });
 
-// Xử lý lệnh slash
-client.on('interactionCreate', async interaction => {
-  if (interaction.isChatInputCommand()) {
-    const command = client.commands.get(interaction.commandName);
-    if (!command) return;
-    try {
-      await command.execute(interaction, client);
-    } catch (error) {
-      console.error(`[ERROR] Thực thi lệnh ${interaction.commandName}:`, error);
-      if (!interaction.replied) {
-        await interaction.reply({ content: '❌ Đã xảy ra lỗi khi xử lý lệnh này.', ephemeral: true });
-      }
-    }
-  }
-
-  // Xử lý component (nút)
-  if (interaction.isButton()) {
-    const [baseId] = interaction.customId.split('_');
-    const handler = client.components.get(baseId);
-    if (!handler) return;
-    try {
-      await handler.execute(interaction, client);
-    } catch (error) {
-      console.error(`❌ Lỗi xử lý button ${interaction.customId}:`, error);
-    }
-  }
-});
+// Interaction handling is now managed by events/interactionCreate.js
 
 // Đăng nhập bot
 client.login(process.env.TOKEN);
