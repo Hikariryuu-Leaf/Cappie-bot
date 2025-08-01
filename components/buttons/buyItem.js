@@ -2,6 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const { loadJSON, saveJSON } = require('../../utils/database');
 const { userDataPath, emojiPath, shopDataPath } = require('../../config');
 const config = require('../../config');
+const embedConfig = require('../../config/embeds');
 
 module.exports = {
   customIdRegex: /^buyitem_\d+$/,
@@ -42,9 +43,9 @@ module.exports = {
     saveJSON(userDataPath, users);
 
     const embed = new EmbedBuilder()
-      .setTitle(`🎁 Đổi quà: ${itemName}`)
-      .setColor(0x32cd32)
-      .setThumbnail(interaction.client.user.displayAvatarURL())
+      .setTitle(`${embedConfig.emojis.shop.title} Đổi quà: ${itemName}`)
+      .setColor(embedConfig.colors.success)
+      .setThumbnail(embedConfig.defaultBanner)
       .addFields(
         { name: 'Người đổi', value: `<@${userId}> (${userId})`, inline: true },
         { name: 'Phần thưởng', value: itemName, inline: true },

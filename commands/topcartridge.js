@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { loadJSON } = require('../utils/database');
 const { userDataPath } = require('../config');
 const { getEmoji } = require('../utils/emoji');
+const embedConfig = require('../config/embeds');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -26,15 +27,15 @@ module.exports = {
     const emoji = getEmoji();
 
     const embed = new EmbedBuilder()
-      .setTitle(`💰 Top 10 Cartridge`)
-      .setColor(0xf1c40f)
-      .setThumbnail(interaction.client.user.displayAvatarURL())
+      .setTitle(`${embedConfig.emojis.top.cartridge} Top 10 Cartridge`)
+      .setColor(embedConfig.colors.top)
+      .setThumbnail(embedConfig.defaultBanner)
       .setTimestamp();
 
     let rank = 1;
     for (const [userId, data] of sorted) {
       embed.addFields({
-        name: `#${rank} - <@${userId}>`,
+        name: `${embedConfig.emojis.top.rank}${rank} - <@${userId}>`,
         value: `${emoji} ${data.cartridge || 0} Cartridge`,
         inline: false
       });

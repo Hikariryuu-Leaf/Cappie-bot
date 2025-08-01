@@ -1,4 +1,4 @@
-const { loadJSON, saveJSON, voiceTime } = require('../utils/database');
+const { loadJSON, saveJSON } = require('../utils/database');
 
 const INTERVAL = 10 * 60 * 1000; // 10 phút
 const CARTRIDGE_PER_INTERVAL = 1; // Cartridge mỗi 10 phút
@@ -36,10 +36,8 @@ function start(client) {
             };
           }
 
-          // Thêm cartridge cho thời gian voice
+          // Thêm cartridge cho thời gian voice (chỉ khi thực sự trong voice)
           users[userId].cartridge += CARTRIDGE_PER_INTERVAL;
-          users[userId].voiceTime += 10; // Thêm 10 phút vào voice time
-          users[userId].totalVoice += 10;
           
           saveJSON('./data/users.json', users);
 

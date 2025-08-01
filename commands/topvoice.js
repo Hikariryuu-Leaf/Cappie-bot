@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { loadJSON } = require('../utils/database');
 const { userDataPath } = require('../config');
 const { formatTime } = require('../utils/formatTime');
+const embedConfig = require('../config/embeds');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -25,17 +26,17 @@ module.exports = {
     }
 
     const embed = new EmbedBuilder()
-      .setTitle('🎙️ Top 10 Voice Time')
-      .setColor(0x3498db)
-      .setThumbnail(interaction.client.user.displayAvatarURL())
+      .setTitle(`${embedConfig.emojis.top.voice} Top 10 Voice Time`)
+      .setColor(embedConfig.colors.voice)
+      .setThumbnail(embedConfig.defaultBanner)
       .setTimestamp();
 
     let rank = 1;
     for (const [userId, data] of sorted) {
       const voiceTimeFormatted = formatTime(data.totalVoice || 0);
       embed.addFields({
-        name: `#${rank} - <@${userId}>`,
-        value: `🕒 ${voiceTimeFormatted}`,
+        name: `${embedConfig.emojis.top.rank}${rank} - <@${userId}>`,
+        value: `${embedConfig.emojis.profile.voice} ${voiceTimeFormatted}`,
         inline: false
       });
       rank++;

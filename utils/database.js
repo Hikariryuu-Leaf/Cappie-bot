@@ -71,9 +71,18 @@ const voiceTime = {
       users[userId] = { cartridge: 0, voiceTime: 0, totalVoice: 0, lastClaim: 0 };
     }
     
-    users[userId].voiceTime += timeSpent;
-    users[userId].totalVoice += timeSpent;
-    saveJSON('./data/users.json', users);
+    // Convert milliseconds to minutes for accurate tracking
+    const timeInMinutes = Math.floor(timeSpent / 60000);
+    
+    // Only add time if it's reasonable (prevent huge jumps)
+    if (timeInMinutes > 0 && timeInMinutes < 1440) { // Max 24 hours per session
+      users[userId].voiceTime += timeInMinutes;
+      users[userId].totalVoice += timeInMinutes;
+      saveJSON('./data/users.json', users);
+      console.log(`[VOICE] Added ${timeInMinutes} minutes for user ${userId}`);
+    } else {
+      console.warn(`[VOICE] Skipped adding ${timeInMinutes} minutes for user ${userId} (unreasonable time)`);
+    }
   }
 };
 

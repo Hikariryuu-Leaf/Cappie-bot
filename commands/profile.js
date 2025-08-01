@@ -3,6 +3,7 @@ const { loadJSON } = require('../utils/database');
 const { userDataPath, emojiPath } = require('../config');
 const { formatTime } = require('../utils/formatTime');
 const config = require('../config');
+const embedConfig = require('../config/embeds');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -38,14 +39,15 @@ module.exports = {
     const voiceTimeFormatted = formatTime(totalVoice);
 
     const embed = new EmbedBuilder()
-      .setColor(0x3399ff)
+      .setColor(embedConfig.colors.profile)
       .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
       .setTitle(`${emoji} Hồ sơ của bạn`)
+      .setThumbnail(embedConfig.defaultBanner)
       .addFields(
-        { name: `🎫 Tổng Cartridge`, value: `\`${userData.cartridge} ${emoji}\``, inline: true },
-        { name: `🕒 Tổng voice`, value: `\`${voiceTimeFormatted}\``, inline: true },
-        { name: `🥇 Hạng Cartridge`, value: `Top \`${cartRank}\``, inline: true },
-        { name: `🎙️ Hạng Voice`, value: `Top \`${voiceRank}\``, inline: true }
+        { name: `${embedConfig.emojis.profile.cartridge} Tổng Cartridge`, value: `\`${userData.cartridge} ${emoji}\``, inline: true },
+        { name: `${embedConfig.emojis.profile.voice} Tổng voice`, value: `\`${voiceTimeFormatted}\``, inline: true },
+        { name: `${embedConfig.emojis.profile.rank} Hạng Cartridge`, value: `Top \`${cartRank}\``, inline: true },
+        { name: `${embedConfig.emojis.profile.voiceRank} Hạng Voice`, value: `Top \`${voiceRank}\``, inline: true }
       )
       .setFooter({ text: 'Sử dụng nút bên dưới để mở shop đổi thưởng' });
 

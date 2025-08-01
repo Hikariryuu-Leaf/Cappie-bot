@@ -3,6 +3,7 @@ const { loadJSON, saveJSON } = require('../utils/database');
 const { userDataPath, emojiPath } = require('../config');
 const { isNitro, getNitroMultiplier } = require('../utils/isNitro');
 const config = require('../config');
+const embedConfig = require('../config/embeds');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -35,7 +36,7 @@ module.exports = {
       const minutes = Math.floor((remaining % 3600000) / 60000);
 
       return interaction.reply({
-        content: `🕓 Bạn đã điểm danh rồi. Hãy quay lại sau **${hours}h ${minutes}m**.`,
+        content: `${embedConfig.emojis.diemdanh.cooldown} Bạn đã điểm danh rồi. Hãy quay lại sau **${hours}h ${minutes}m**.`,
         flags: 64 // Ephemeral flag
       });
     }
@@ -50,14 +51,15 @@ module.exports = {
     saveJSON(userDataPath, users);
 
     const embed = new EmbedBuilder()
-      .setColor(0x00ff99)
+      .setColor(embedConfig.colors.success)
       .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-      .setTitle(`${emoji} Điểm danh thành công!`)
+      .setTitle(`${embedConfig.emojis.diemdanh.success} Điểm danh thành công!`)
       .setDescription(`Bạn đã nhận được **${reward} Cartridge** ${emoji}!\nTổng Cartridge: **${users[userId].cartridge}**`)
+      .setThumbnail(embedConfig.defaultBanner)
       .addFields(
-        { name: '🎁 Phần thưởng', value: `${reward} ${emoji}`, inline: true },
-        { name: '💎 Nitro Bonus', value: hasNitro ? '✅ Có' : '❌ Không', inline: true },
-        { name: '📊 Tổng Cartridge', value: `${users[userId].cartridge} ${emoji}`, inline: true }
+        { name: `${embedConfig.emojis.diemdanh.reward} Phần thưởng`, value: `${reward} ${emoji}`, inline: true },
+        { name: `${embedConfig.emojis.diemdanh.nitro} Nitro Bonus`, value: hasNitro ? '✅ Có' : '❌ Không', inline: true },
+        { name: `${embedConfig.emojis.diemdanh.total} Tổng Cartridge`, value: `${users[userId].cartridge} ${emoji}`, inline: true }
       )
       .setTimestamp();
 

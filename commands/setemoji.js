@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { saveJSON } = require('../utils/database');
 const { emojiPath } = require('../config');
+const embedConfig = require('../config/embeds');
 
 module.exports = {
   data: new SlashCommandBuilder()

@@ -2,6 +2,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('
 const { loadJSON } = require('../../utils/database');
 const { emojiPath, shopDataPath } = require('../../config');
 const config = require('../../config');
+const embedConfig = require('../../config/embeds');
 
 module.exports = {
   customId: 'handleShop',
@@ -13,9 +14,10 @@ module.exports = {
       const emoji = emojiData.emoji || config.defaultEmoji;
 
       const embed = new EmbedBuilder()
-        .setTitle('🎁 Shop Đổi Quà')
-        .setColor(0x00ffff)
+        .setTitle(`${embedConfig.emojis.shop.title} Shop Đổi Quà`)
+        .setColor(embedConfig.colors.shop)
         .setDescription('Chọn phần thưởng bạn muốn đổi từ Cartridge')
+        .setThumbnail(embedConfig.defaultBanner)
         .setFooter({ text: `Bạn có thể nhấn đổi nếu đủ Cartridge.` });
 
       const rows = [];
@@ -31,8 +33,8 @@ module.exports = {
 
       shopItems.forEach(([itemName, price], index) => {
         embed.addFields({
-          name: `🎉 ${itemName}`,
-          value: `💸 Giá: \`${price} ${emoji}\``,
+          name: `${embedConfig.emojis.shop.title} ${itemName}`,
+          value: `${embedConfig.emojis.shop.price} Giá: \`${price} ${emoji}\``,
           inline: false
         });
 

@@ -6,12 +6,9 @@ module.exports = {
   async execute(interaction) {
     // Add a flag to prevent multiple handling of the same interaction
     if (interaction._handled) {
-      console.log(`[DEBUG] Interaction ${interaction.id} already handled, skipping`);
       return;
     }
     interaction._handled = true;
-
-    console.log(`[DEBUG] Handling interaction ${interaction.id} - Type: ${interaction.type}`);
 
     // Wrap the entire execution in a try-catch to handle any unhandled errors
     try {
@@ -22,8 +19,6 @@ module.exports = {
       // Only reply if the interaction hasn't been responded to yet
       // Be more conservative - only reply if we're absolutely sure it hasn't been handled
       const canReply = !interaction.replied && !interaction.deferred && !interaction.acknowledged;
-      
-      console.log(`[DEBUG] Can reply: ${canReply}, Replied: ${interaction.replied}, Deferred: ${interaction.deferred}`);
       
       if (canReply) {
         try {
@@ -37,8 +32,6 @@ module.exports = {
             console.error('❌ Không thể gửi error reply:', replyError);
           }
         }
-      } else {
-        console.log(`[DEBUG] Skipping error reply - interaction already handled`);
       }
     }
   },
@@ -46,7 +39,6 @@ module.exports = {
   async handleInteraction(interaction) {
     // Slash command
     if (interaction.isChatInputCommand()) {
-      console.log(`[DEBUG] Executing slash command: ${interaction.commandName}`);
       const command = interaction.client.commands.get(interaction.commandName);
       if (!command) {
         console.warn(`[WARN] Command not found: ${interaction.commandName}`);
@@ -63,7 +55,6 @@ module.exports = {
 
     // Button handler
     else if (interaction.isButton()) {
-      console.log(`[DEBUG] Executing button interaction: ${interaction.customId}`);
       const [baseId] = interaction.customId.split('_');
       const handler = interaction.client.components.get(baseId);
       
