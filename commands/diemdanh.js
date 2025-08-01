@@ -35,9 +35,8 @@ module.exports = {
       const hours = Math.floor(remaining / 3600000);
       const minutes = Math.floor((remaining % 3600000) / 60000);
 
-      return interaction.reply({
-        content: `${embedConfig.emojis.diemdanh.cooldown} Bạn đã điểm danh rồi. Hãy quay lại sau **${hours}h ${minutes}m**.`,
-        flags: 64 // Ephemeral flag
+      return interaction.editReply({
+        content: `${embedConfig.emojis.diemdanh.cooldown} Bạn đã điểm danh rồi. Hãy quay lại sau **${hours}h ${minutes}m**.`
       });
     }
 
@@ -55,8 +54,8 @@ module.exports = {
       .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
       .setTitle(`${embedConfig.emojis.diemdanh.success} Điểm danh thành công!`)
       .setDescription(`Bạn đã nhận được **${reward} Cartridge** ${emoji}!\nTổng Cartridge: **${users[userId].cartridge}**`)
-      .setThumbnail(embedConfig.getBanner(interaction.user.id))
-      .setImage(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
+      .setThumbnail(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
+      .setImage(embedConfig.getBanner(interaction.user.id))
       .addFields(
         { name: `${embedConfig.emojis.diemdanh.reward} Phần thưởng`, value: `${reward} ${emoji}`, inline: true },
         { name: `${embedConfig.emojis.diemdanh.nitro} Nitro Bonus`, value: hasNitro ? '✅ Có' : '❌ Không', inline: true },
@@ -64,6 +63,6 @@ module.exports = {
       )
       .setTimestamp();
 
-    return interaction.reply({ embeds: [embed], flags: 64 }); // Ephemeral flag
+    return interaction.editReply({ embeds: [embed] }); // Edit the deferred reply
   }
 };

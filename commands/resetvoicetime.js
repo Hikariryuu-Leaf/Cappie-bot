@@ -15,9 +15,8 @@ module.exports = {
   async execute(interaction) {
     const ownerId = process.env.OWNER_ID;
     if (interaction.user.id !== ownerId) {
-      return interaction.reply({
-        content: '❌ Bạn không có quyền sử dụng lệnh này.',
-        flags: 64 // Ephemeral flag
+      return interaction.editReply({
+        content: '❌ Bạn không có quyền sử dụng lệnh này.'
       });
     }
 
@@ -25,9 +24,8 @@ module.exports = {
     const users = loadJSON(userDataPath);
 
     if (!users[targetUser.id]) {
-      return interaction.reply({
-        content: '❌ User này chưa có dữ liệu.',
-        flags: 64 // Ephemeral flag
+      return interaction.editReply({
+        content: '❌ User này chưa có dữ liệu.'
       });
     }
 
@@ -36,9 +34,8 @@ module.exports = {
     users[targetUser.id].totalVoice = 0;
     saveJSON(userDataPath, users);
 
-    await interaction.reply({
-      content: `✅ Đã reset voice time cho ${targetUser.tag}`,
-      flags: 64 // Ephemeral flag
+    await interaction.editReply({
+      content: `✅ Đã reset voice time cho ${targetUser.tag}`
     });
   }
 }; 

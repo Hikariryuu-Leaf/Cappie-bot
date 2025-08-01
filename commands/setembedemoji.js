@@ -36,9 +36,8 @@ module.exports = {
   async execute(interaction) {
     const ownerId = process.env.OWNER_ID;
     if (interaction.user.id !== ownerId) {
-      return interaction.reply({
-        content: '❌ Bạn không có quyền sử dụng lệnh này.',
-        flags: 64 // Ephemeral flag
+      return interaction.editReply({
+        content: '❌ Bạn không có quyền sử dụng lệnh này.'
       });
     }
 
@@ -50,14 +49,12 @@ module.exports = {
     if (embedConfig.emojis[category] && embedConfig.emojis[category][subcategory]) {
       embedConfig.emojis[category][subcategory] = emoji;
       
-      await interaction.reply({
-        content: `✅ Đã thay đổi emoji cho ${section} thành: ${emoji}`,
-        flags: 64 // Ephemeral flag
+      await interaction.editReply({
+        content: `✅ Đã thay đổi emoji cho ${section} thành: ${emoji}`
       });
     } else {
-      await interaction.reply({
-        content: '❌ Phần emoji không tồn tại.',
-        flags: 64 // Ephemeral flag
+      await interaction.editReply({
+        content: '❌ Phần emoji không tồn tại.'
       });
     }
   }

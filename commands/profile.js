@@ -42,8 +42,8 @@ module.exports = {
       .setColor(embedConfig.colors.profile)
       .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
       .setTitle(`${emoji} Hồ sơ của bạn`)
-      .setThumbnail(embedConfig.getBanner(interaction.user.id))
-      .setImage(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
+      .setThumbnail(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
+      .setImage(embedConfig.getBanner(interaction.user.id))
       .addFields(
         { name: `${embedConfig.emojis.profile.cartridge} Tổng Cartridge`, value: `\`${userData.cartridge} ${emoji}\``, inline: true },
         { name: `${embedConfig.emojis.profile.voice} Tổng voice`, value: `\`${voiceTimeFormatted}\``, inline: true },
@@ -59,10 +59,10 @@ module.exports = {
         .setStyle(ButtonStyle.Success)
     );
 
-    await interaction.reply({
+    await interaction.editReply({
       embeds: [embed],
       components: [row]
-      // Removed ephemeral flag to make it public
+      // Edit the deferred reply
     });
   }
 };

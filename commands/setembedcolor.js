@@ -29,9 +29,8 @@ module.exports = {
   async execute(interaction) {
     const ownerId = process.env.OWNER_ID;
     if (interaction.user.id !== ownerId) {
-      return interaction.reply({
-        content: '❌ Bạn không có quyền sử dụng lệnh này.',
-        flags: 64 // Ephemeral flag
+      return interaction.editReply({
+        content: '❌ Bạn không có quyền sử dụng lệnh này.'
       });
     }
 
@@ -41,9 +40,8 @@ module.exports = {
     // Validate hex color
     const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
     if (!hexRegex.test(colorHex)) {
-      return interaction.reply({
-        content: '❌ Màu hex không hợp lệ. Vui lòng sử dụng định dạng #RRGGBB.',
-        flags: 64 // Ephemeral flag
+      return interaction.editReply({
+        content: '❌ Màu hex không hợp lệ. Vui lòng sử dụng định dạng #RRGGBB.'
       });
     }
 
@@ -54,14 +52,12 @@ module.exports = {
     if (embedConfig.colors[type] !== undefined) {
       embedConfig.colors[type] = colorDecimal;
       
-      await interaction.reply({
-        content: `✅ Đã thay đổi màu cho ${type} thành: ${colorHex}`,
-        flags: 64 // Ephemeral flag
+      await interaction.editReply({
+        content: `✅ Đã thay đổi màu cho ${type} thành: ${colorHex}`
       });
     } else {
-      await interaction.reply({
-        content: '❌ Loại màu không tồn tại.',
-        flags: 64 // Ephemeral flag
+      await interaction.editReply({
+        content: '❌ Loại màu không tồn tại.'
       });
     }
   }

@@ -17,8 +17,8 @@ module.exports = {
         .setTitle(`${embedConfig.emojis.shop.title} Shop Đổi Quà`)
         .setColor(embedConfig.colors.shop)
         .setDescription('Chọn phần thưởng bạn muốn đổi từ Cartridge')
-        .setThumbnail(embedConfig.getBanner(interaction.user.id))
-        .setImage(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
+        .setThumbnail(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
+        .setImage(embedConfig.getBanner(interaction.user.id))
         .setFooter({ text: `Bạn có thể nhấn đổi nếu đủ Cartridge.` });
 
       const rows = [];
@@ -26,9 +26,8 @@ module.exports = {
 
       if (shopItems.length === 0) {
         embed.setDescription('❌ Hiện tại không có phần thưởng nào trong shop.');
-        return await interaction.reply({
-          embeds: [embed],
-          flags: 64 // Ephemeral flag
+        return await interaction.editReply({
+          embeds: [embed]
         });
       }
 
@@ -49,16 +48,14 @@ module.exports = {
         rows.push(row);
       });
 
-      await interaction.reply({
+      await interaction.editReply({
         embeds: [embed],
-        components: rows,
-        flags: 64 // Ephemeral flag
+        components: rows
       });
     } catch (err) {
       console.error('❌ Lỗi khi mở shop:', err);
-      await interaction.reply({
-        content: 'Đã xảy ra lỗi khi mở shop. Vui lòng thử lại sau!',
-        flags: 64 // Ephemeral flag
+      await interaction.editReply({
+        content: 'Đã xảy ra lỗi khi mở shop. Vui lòng thử lại sau!'
       });
     }
   }

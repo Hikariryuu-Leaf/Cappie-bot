@@ -1,4 +1,5 @@
 const { Events } = require('discord.js');
+const { safeReply, safeDefer } = require('../utils/interactionHelper');
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -17,12 +18,11 @@ module.exports = {
       console.error('❌ Lỗi xử lý interaction (outer catch):', error);
       
       // Only reply if the interaction hasn't been responded to yet
-      // Be more conservative - only reply if we're absolutely sure it hasn't been handled
       const canReply = !interaction.replied && !interaction.deferred && !interaction.acknowledged;
       
       if (canReply) {
         try {
-          await interaction.reply({ 
+          await safeReply(interaction, { 
             content: 'Đã xảy ra lỗi khi xử lý lệnh.', 
             flags: 64 // Ephemeral flag
           });
@@ -45,6 +45,9 @@ module.exports = {
         return;
       }
 
+      // Defer reply to prevent timeout for commands that might take time
+      await safeDefer(interaction, { flags: 64 });
+
       try {
         await command.execute(interaction, interaction.client);
       } catch (commandError) {
@@ -55,6 +58,9 @@ module.exports = {
 
     // Button handler
     else if (interaction.isButton()) {
+      // Defer reply for button interactions too
+      await safeDefer(interaction, { flags: 64 });
+
       const [baseId] = interaction.customId.split('_');
       const handler = interaction.client.components.get(baseId);
       

@@ -18,9 +18,8 @@ module.exports = {
       .slice(0, 10);
 
     if (sorted.length === 0) {
-      return interaction.reply({
-        content: '❌ Không có người dùng nào có Cartridge.',
-        flags: 64 // Ephemeral flag
+      return interaction.editReply({
+        content: '❌ Không có người dùng nào có Cartridge.'
       });
     }
 
@@ -29,8 +28,8 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setTitle(`${embedConfig.emojis.top.cartridge} Top 10 Cartridge`)
       .setColor(embedConfig.colors.top)
-      .setThumbnail(embedConfig.getBanner(interaction.user.id))
-      .setImage(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
+      .setThumbnail(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
+      .setImage(embedConfig.getBanner(interaction.user.id))
       .setTimestamp();
 
     let rank = 1;
@@ -43,6 +42,6 @@ module.exports = {
       rank++;
     }
 
-    await interaction.reply({ embeds: [embed] }); // Public embed
+    await interaction.editReply({ embeds: [embed] }); // Edit the deferred reply
   }
 };

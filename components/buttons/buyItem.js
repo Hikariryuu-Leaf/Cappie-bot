@@ -24,16 +24,15 @@ module.exports = {
     const item = shopItems[itemIndex];
 
     if (!item) {
-      return interaction.reply({ content: '❌ Phần thưởng không tồn tại.', flags: 64 }); // Ephemeral flag
+      return interaction.editReply({ content: '❌ Phần thưởng không tồn tại.' });
     }
 
     const [itemName, price] = item;
     const user = users[userId] || { cartridge: 0, totalVoice: 0 };
     
     if (user.cartridge < price) {
-      return interaction.reply({
-        content: `❌ Bạn không đủ ${emoji}. Cần ${price}, bạn có ${user.cartridge}.`,
-        flags: 64 // Ephemeral flag
+      return interaction.editReply({
+        content: `❌ Bạn không đủ ${emoji}. Cần ${price}, bạn có ${user.cartridge}.`
       });
     }
 
@@ -45,8 +44,8 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setTitle(`${embedConfig.emojis.shop.title} Đổi quà: ${itemName}`)
       .setColor(embedConfig.colors.success)
-      .setThumbnail(embedConfig.getBanner(userId))
-      .setImage(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
+      .setThumbnail(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
+      .setImage(embedConfig.getBanner(userId))
       .addFields(
         { name: 'Người đổi', value: `<@${userId}> (${userId})`, inline: true },
         { name: 'Phần thưởng', value: itemName, inline: true },
@@ -86,9 +85,8 @@ module.exports = {
       }
     }
 
-    await interaction.reply({
-      content: `✅ Bạn đã đổi thành công phần thưởng **${itemName}** với giá **${price} ${emoji}**!`,
-      flags: 64 // Ephemeral flag
+    await interaction.editReply({
+      content: `✅ Bạn đã đổi thành công phần thưởng **${itemName}** với giá **${price} ${emoji}**!`
     });
   }
 };
