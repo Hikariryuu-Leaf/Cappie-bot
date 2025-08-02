@@ -1,5 +1,5 @@
 const { Events } = require('discord.js');
-const { safeReply, safeDefer } = require('../utils/interactionHelper');
+const { safeReply, safeDefer, safeEditReply, isInteractionValid } = require('../utils/interactionHelper');
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -17,10 +17,8 @@ module.exports = {
     } catch (error) {
       console.error('❌ Lỗi xử lý interaction (outer catch):', error);
       
-      // Only reply if the interaction hasn't been responded to yet
-      const canReply = !interaction.replied && !interaction.deferred && !interaction.acknowledged;
-      
-      if (canReply) {
+      // Only try to reply if the interaction is still valid
+      if (isInteractionValid(interaction)) {
         try {
           await safeReply(interaction, { 
             content: 'Đã xảy ra lỗi khi xử lý lệnh.', 
@@ -28,7 +26,7 @@ module.exports = {
           });
         } catch (replyError) {
           // Don't log this error as it's expected when interaction is already acknowledged
-          if (replyError.code !== 40060) {
+          if (replyError.code !== 40060 && replyError.code !== 10062) {
             console.error('❌ Không thể gửi error reply:', replyError);
           }
         }
@@ -45,25 +43,62 @@ module.exports = {
         return;
       }
 
+      // Check if interaction is still valid before proceeding
+      if (!isInteractionValid(interaction)) {
+        console.warn(`[WARN] Interaction not valid for command: ${interaction.commandName}`);
+        return;
+      }
+
       // Defer reply to prevent timeout for commands that might take time
       // For commands that should be visible to everyone, don't use ephemeral flag
       const publicCommands = ['profile', 'topcartridge', 'topvoice'];
       const shouldBeEphemeral = !publicCommands.includes(interaction.commandName);
       
-      await safeDefer(interaction, { flags: shouldBeEphemeral ? 64 : 0 });
+      const deferred = await safeDefer(interaction, { flags: shouldBeEphemeral ? 64 : 0 });
+      
+      // If defer failed, don't proceed with command execution
+      if (!deferred) {
+        console.warn(`[WARN] Failed to defer interaction for command: ${interaction.commandName}`);
+        return;
+      }
 
       try {
         await command.execute(interaction, interaction.client);
       } catch (commandError) {
         console.error(`[ERROR] Command execution failed: ${interaction.commandName}`, commandError);
+        
+        // Try to send error message if interaction is still valid
+        if (interaction.deferred) {
+          try {
+            await safeEditReply(interaction, {
+              content: 'Đã xảy ra lỗi khi thực hiện lệnh.',
+              flags: 64
+            });
+          } catch (editError) {
+            console.error(`[ERROR] Failed to send error message for ${interaction.commandName}:`, editError);
+          }
+        }
+        
         throw commandError; // Re-throw to be caught by outer catch
       }
     }
 
     // Button handler
     else if (interaction.isButton()) {
+      // Check if interaction is still valid before proceeding
+      if (!isInteractionValid(interaction)) {
+        console.warn(`[WARN] Interaction not valid for button: ${interaction.customId}`);
+        return;
+      }
+
       // Defer reply for button interactions too
-      await safeDefer(interaction, { flags: 64 });
+      const deferred = await safeDefer(interaction, { flags: 64 });
+      
+      // If defer failed, don't proceed with button execution
+      if (!deferred) {
+        console.warn(`[WARN] Failed to defer interaction for button: ${interaction.customId}`);
+        return;
+      }
 
       const [baseId] = interaction.customId.split('_');
       const handler = interaction.client.components.get(baseId);
@@ -76,6 +111,19 @@ module.exports = {
             await buyItemHandler.execute(interaction, interaction.client);
           } catch (buttonError) {
             console.error(`[ERROR] Button execution failed: ${interaction.customId}`, buttonError);
+            
+            // Try to send error message if interaction is still valid
+            if (interaction.deferred) {
+              try {
+                await safeEditReply(interaction, {
+                  content: 'Đã xảy ra lỗi khi xử lý nút.',
+                  flags: 64
+                });
+              } catch (editError) {
+                console.error(`[ERROR] Failed to send error message for button ${interaction.customId}:`, editError);
+              }
+            }
+            
             throw buttonError; // Re-throw to be caught by outer catch
           }
           return;
@@ -88,6 +136,19 @@ module.exports = {
         await handler.execute(interaction, interaction.client);
       } catch (buttonError) {
         console.error(`[ERROR] Button execution failed: ${interaction.customId}`, buttonError);
+        
+        // Try to send error message if interaction is still valid
+        if (interaction.deferred) {
+          try {
+            await safeEditReply(interaction, {
+              content: 'Đã xảy ra lỗi khi xử lý nút.',
+              flags: 64
+            });
+          } catch (editError) {
+            console.error(`[ERROR] Failed to send error message for button ${interaction.customId}:`, editError);
+          }
+        }
+        
         throw buttonError; // Re-throw to be caught by outer catch
       }
     }

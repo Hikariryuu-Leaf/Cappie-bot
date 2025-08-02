@@ -3,6 +3,7 @@ const { loadJSON } = require('../utils/database');
 const { userDataPath } = require('../config');
 const { formatTime } = require('../utils/formatTime');
 const embedConfig = require('../config/embeds');
+const { safeEditReply } = require('../utils/interactionHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -19,7 +20,7 @@ module.exports = {
       .slice(0, 10);
 
     if (sorted.length === 0) {
-      return interaction.editReply({
+      return safeEditReply(interaction, {
         content: '❌ Không có dữ liệu voice nào.'
       });
     }
@@ -42,7 +43,7 @@ module.exports = {
       rank++;
     }
 
-    await interaction.editReply({ 
+    await safeEditReply(interaction, { 
       embeds: [embed]
     });
   }

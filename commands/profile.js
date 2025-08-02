@@ -4,6 +4,7 @@ const { userDataPath, emojiPath } = require('../config');
 const { formatTime } = require('../utils/formatTime');
 const config = require('../config');
 const embedConfig = require('../config/embeds');
+const { safeEditReply } = require('../utils/interactionHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -59,7 +60,7 @@ module.exports = {
         .setStyle(ButtonStyle.Success)
     );
 
-    await interaction.editReply({
+    await safeEditReply(interaction, {
       embeds: [embed],
       components: [row]
     });

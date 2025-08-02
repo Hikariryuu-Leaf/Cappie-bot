@@ -3,6 +3,7 @@ const { loadJSON } = require('../../utils/database');
 const { emojiPath, shopDataPath } = require('../../config');
 const config = require('../../config');
 const embedConfig = require('../../config/embeds');
+const { safeEditReply } = require('../../utils/interactionHelper');
 
 module.exports = {
   customId: 'handleShop',
@@ -26,7 +27,7 @@ module.exports = {
 
       if (shopItems.length === 0) {
         embed.setDescription('❌ Hiện tại không có phần thưởng nào trong shop.');
-        return await interaction.editReply({
+        return await safeEditReply(interaction, {
           embeds: [embed]
         });
       }
@@ -48,13 +49,13 @@ module.exports = {
         rows.push(row);
       });
 
-      await interaction.editReply({
+      await safeEditReply(interaction, {
         embeds: [embed],
         components: rows
       });
     } catch (err) {
       console.error('❌ Lỗi khi mở shop:', err);
-      await interaction.editReply({
+      await safeEditReply(interaction, {
         content: 'Đã xảy ra lỗi khi mở shop. Vui lòng thử lại sau!'
       });
     }

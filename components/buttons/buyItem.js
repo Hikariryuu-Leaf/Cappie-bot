@@ -3,6 +3,7 @@ const { loadJSON, saveJSON } = require('../../utils/database');
 const { userDataPath, emojiPath, shopDataPath } = require('../../config');
 const config = require('../../config');
 const embedConfig = require('../../config/embeds');
+const { safeEditReply } = require('../../utils/interactionHelper');
 
 module.exports = {
   customIdRegex: /^buyitem_\d+$/,
@@ -24,14 +25,14 @@ module.exports = {
     const item = shopItems[itemIndex];
 
     if (!item) {
-      return interaction.editReply({ content: '❌ Phần thưởng không tồn tại.' });
+      return safeEditReply(interaction, { content: '❌ Phần thưởng không tồn tại.' });
     }
 
     const [itemName, price] = item;
     const user = users[userId] || { cartridge: 0, totalVoice: 0 };
     
     if (user.cartridge < price) {
-      return interaction.editReply({
+      return safeEditReply(interaction, {
         content: `❌ Bạn không đủ ${emoji}. Cần ${price}, bạn có ${user.cartridge}.`
       });
     }
@@ -85,7 +86,7 @@ module.exports = {
       }
     }
 
-    await interaction.editReply({
+    await safeEditReply(interaction, {
       content: `✅ Bạn đã đổi thành công phần thưởng **${itemName}** với giá **${price} ${emoji}**!`
     });
   }

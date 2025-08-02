@@ -4,6 +4,7 @@ const { userDataPath, emojiPath } = require('../config');
 const { isNitro, getNitroMultiplier } = require('../utils/isNitro');
 const config = require('../config');
 const embedConfig = require('../config/embeds');
+const { safeEditReply } = require('../utils/interactionHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -35,7 +36,7 @@ module.exports = {
       const hours = Math.floor(remaining / 3600000);
       const minutes = Math.floor((remaining % 3600000) / 60000);
 
-      return interaction.editReply({
+                return safeEditReply(interaction, {
         content: `${embedConfig.emojis.diemdanh.cooldown} Bạn đã điểm danh rồi. Hãy quay lại sau **${hours}h ${minutes}m**.`
       });
     }
@@ -63,6 +64,6 @@ module.exports = {
       )
       .setTimestamp();
 
-    return interaction.editReply({ embeds: [embed] }); // Edit the deferred reply
+    return safeEditReply(interaction, { embeds: [embed] }); // Edit the deferred reply
   }
 };
