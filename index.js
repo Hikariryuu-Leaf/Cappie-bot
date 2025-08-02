@@ -4,6 +4,8 @@ const path = require('path');
 const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js');
 const { loadCommands } = require('./utils/loader');
 const voiceTracker = require('./jobs/voiceTracker');
+const { initializeDatabase } = require('./utils/database');
+const { migrateData } = require('./utils/migrateData');
 
 // Tạo client
 const client = new Client({
@@ -65,9 +67,26 @@ for (const file of eventFiles) {
 }
 
 // Ready event
-client.once('ready', () => {
+client.once('ready', async () => {
   console.log(`[READY] Bot đăng nhập với tag: ${client.user.tag}`);
-  voiceTracker.start(client);
+  
+  try {
+    // Migrate existing data to new system
+    console.log('[STARTUP] Migrating existing data...');
+    migrateData();
+    
+    // Initialize enhanced database system
+    console.log('[STARTUP] Initializing database system...');
+    initializeDatabase();
+    
+    // Start voice tracking
+    console.log('[STARTUP] Starting voice tracking...');
+    voiceTracker.start(client);
+    
+    console.log('[STARTUP] Bot startup completed successfully!');
+  } catch (error) {
+    console.error('[STARTUP] Error during startup:', error);
+  }
 });
 
 // Interaction handling is now managed by events/interactionCreate.js
