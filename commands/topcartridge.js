@@ -35,11 +35,22 @@ module.exports = {
 
     let rank = 1;
     for (const [userId, data] of sorted) {
-      embed.addFields({
-        name: `${embedConfig.emojis.top.rank}${rank} - <@${userId}>`,
-        value: `${emoji} ${data.cartridge || 0} Cartridge`,
-        inline: false
-      });
+      try {
+        const user = await interaction.client.users.fetch(userId);
+        const username = user.username;
+        embed.addFields({
+          name: `${embedConfig.emojis.top.rank}${rank} - @${username}`,
+          value: `${emoji} ${data.cartridge || 0} Cartridge`,
+          inline: false
+        });
+      } catch (error) {
+        // If user not found, use userId as fallback
+        embed.addFields({
+          name: `${embedConfig.emojis.top.rank}${rank} - @unknown_user`,
+          value: `${emoji} ${data.cartridge || 0} Cartridge`,
+          inline: false
+        });
+      }
       rank++;
     }
 

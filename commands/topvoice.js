@@ -34,12 +34,24 @@ module.exports = {
 
     let rank = 1;
     for (const [userId, data] of sorted) {
-      const voiceTimeFormatted = formatTime(data.totalVoice || 0);
-      embed.addFields({
-        name: `${embedConfig.emojis.top.rank}${rank} - <@${userId}>`,
-        value: `${embedConfig.emojis.profile.voice} ${voiceTimeFormatted}`,
-        inline: false
-      });
+      try {
+        const user = await interaction.client.users.fetch(userId);
+        const username = user.username;
+        const voiceTimeFormatted = formatTime(data.totalVoice || 0);
+        embed.addFields({
+          name: `${embedConfig.emojis.top.rank}${rank} - @${username}`,
+          value: `${embedConfig.emojis.profile.voice} ${voiceTimeFormatted}`,
+          inline: false
+        });
+      } catch (error) {
+        // If user not found, use userId as fallback
+        const voiceTimeFormatted = formatTime(data.totalVoice || 0);
+        embed.addFields({
+          name: `${embedConfig.emojis.top.rank}${rank} - @unknown_user`,
+          value: `${embedConfig.emojis.profile.voice} ${voiceTimeFormatted}`,
+          inline: false
+        });
+      }
       rank++;
     }
 
