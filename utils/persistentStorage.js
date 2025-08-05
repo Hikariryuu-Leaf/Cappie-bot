@@ -267,7 +267,7 @@ class PersistentStorage {
         
         // Initialize git in temp directory
         await execAsync('git init', { cwd: tempGitDir });
-        await execAsync(`git remote add origin https://github.com/${PERSISTENT_CONFIG.externalStorage.github.repo}.git`, { cwd: tempGitDir });
+        await execAsync(`git remote add origin https://${PERSISTENT_CONFIG.externalStorage.github.token}@github.com/${PERSISTENT_CONFIG.externalStorage.github.repo}.git`, { cwd: tempGitDir });
         
         // Create data-backup directory structure
         const dataBackupDir = path.join(tempGitDir, 'data-backup');
