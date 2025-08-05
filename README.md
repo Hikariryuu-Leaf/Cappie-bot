@@ -34,6 +34,7 @@ Một bot Discord với hệ thống theo dõi voice, cartridge và shop đổi 
 - `/setshop` - Admin: Thêm/sửa phần quà trong shop
 - `/setemoji` - Admin: Đổi emoji mặc định
 - `/voicecheck` - Admin: Kiểm tra trạng thái voice tracking và cartridge
+- `/debug` - Admin: Debug cấu hình bot và environment variables
 
 ## Cài đặt
 

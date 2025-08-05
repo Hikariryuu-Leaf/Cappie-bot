@@ -132,7 +132,12 @@ class PersistentStorage {
   // Validate GitHub configuration
   async validateGitHubConfig() {
     try {
+      console.log('[PERSISTENT] Validating GitHub configuration...');
+      
       if (!PERSISTENT_CONFIG.externalStorage.github.repo || !PERSISTENT_CONFIG.externalStorage.github.token) {
+        console.log('[PERSISTENT] Missing GitHub configuration');
+        console.log(`[PERSISTENT] GITHUB_REPO: ${PERSISTENT_CONFIG.externalStorage.github.repo || 'NOT SET'}`);
+        console.log(`[PERSISTENT] GITHUB_TOKEN: ${PERSISTENT_CONFIG.externalStorage.github.token ? 'SET' : 'NOT SET'}`);
         return { valid: false, error: 'GitHub repository or token not configured' };
       }
 
@@ -141,16 +146,34 @@ class PersistentStorage {
       const util = require('util');
       const execAsync = util.promisify(exec);
 
+      console.log(`[PERSISTENT] Testing GitHub API connection to: ${PERSISTENT_CONFIG.externalStorage.github.repo}`);
+      
       const testCmd = `curl -H "Authorization: token ${PERSISTENT_CONFIG.externalStorage.github.token}" https://api.github.com/repos/${PERSISTENT_CONFIG.externalStorage.github.repo}`;
       const { stdout } = await execAsync(testCmd);
       const repoInfo = JSON.parse(stdout);
 
+      console.log(`[PERSISTENT] GitHub API response: ${JSON.stringify(repoInfo, null, 2)}`);
+
       if (repoInfo.message === 'Not Found') {
+        console.log('[PERSISTENT] Repository not found or access denied');
         return { valid: false, error: 'Repository not found or access denied' };
       }
 
+      if (repoInfo.message && repoInfo.message.includes('Bad credentials')) {
+        console.log('[PERSISTENT] Invalid token');
+        return { valid: false, error: 'Invalid GitHub token' };
+      }
+
+      if (repoInfo.message && repoInfo.message.includes('API rate limit exceeded')) {
+        console.log('[PERSISTENT] API rate limit exceeded');
+        return { valid: false, error: 'GitHub API rate limit exceeded' };
+      }
+
+      console.log(`[PERSISTENT] GitHub validation successful: ${repoInfo.full_name}`);
       return { valid: true, repoInfo };
     } catch (error) {
+      console.error('[PERSISTENT] GitHub validation error:', error.message);
+      console.error('[PERSISTENT] Error details:', error);
       return { valid: false, error: `GitHub validation failed: ${error.message}` };
     }
   }
