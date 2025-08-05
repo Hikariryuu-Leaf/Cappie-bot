@@ -261,6 +261,10 @@ class PersistentStorage {
       fs.mkdirSync(tempGitDir, { recursive: true });
 
       try {
+        // Configure git to avoid email issues
+        await execAsync('git config --global user.email "bot@cappie.com"');
+        await execAsync('git config --global user.name "Cappie Bot"');
+        
         // Initialize git in temp directory
         await execAsync('git init', { cwd: tempGitDir });
         await execAsync(`git remote add origin https://github.com/${PERSISTENT_CONFIG.externalStorage.github.repo}.git`, { cwd: tempGitDir });

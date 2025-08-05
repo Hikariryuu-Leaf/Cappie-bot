@@ -5,8 +5,20 @@ const execAsync = util.promisify(exec);
 async function debugGitHubConnection() {
   console.log('🔍 Debug GitHub Connection...\n');
   
+  // 0. Cấu hình git
+  console.log('📋 Bước 0: Cấu hình Git');
+  console.log('=' .repeat(50));
+  
+  try {
+    await execAsync('git config --global user.email "bot@cappie.com"');
+    await execAsync('git config --global user.name "Cappie Bot"');
+    console.log('✅ Git đã được cấu hình');
+  } catch (error) {
+    console.log('⚠️ Lỗi cấu hình git (có thể bỏ qua):', error.message);
+  }
+  
   // 1. Kiểm tra environment variables
-  console.log('📋 Bước 1: Kiểm tra Environment Variables');
+  console.log('\n📋 Bước 1: Kiểm tra Environment Variables');
   console.log('=' .repeat(50));
   
   const githubRepo = process.env.GITHUB_REPO;
