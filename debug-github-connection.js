@@ -1,4 +1,3 @@
-require('dotenv').config();
 const { exec } = require('child_process');
 const util = require('util');
 const execAsync = util.promisify(exec);
@@ -18,7 +17,8 @@ async function debugGitHubConnection() {
   
   if (!githubRepo || !githubToken) {
     console.log('\n❌ Thiếu environment variables!');
-    console.log('Hãy kiểm tra file .env hoặc Render environment variables');
+    console.log('Hãy kiểm tra Render environment variables');
+    console.log('Cần có: GITHUB_REPO và GITHUB_TOKEN');
     return;
   }
   
@@ -105,9 +105,12 @@ async function debugGitHubConnection() {
     if (Array.isArray(contents)) {
       console.log('✅ Có quyền truy cập repository');
       console.log(`Số file/folder: ${contents.length}`);
+    } else if (contents.message === 'This repository is empty.') {
+      console.log('✅ Có quyền truy cập repository (repository trống)');
+      console.log('Repository trống - đây là bình thường cho repository mới');
     } else {
       console.log('❌ Không có quyền truy cập repository');
-      console.log('Kiểm tra token có quyền repo không');
+      console.log('Response:', JSON.stringify(contents, null, 2));
     }
     
   } catch (error) {
