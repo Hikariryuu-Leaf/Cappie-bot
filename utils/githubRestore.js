@@ -85,6 +85,10 @@ class GitHubRestore {
           const fileInfo = JSON.parse(stdout);
           
           // Download file content
+          if (!fileInfo.download_url) {
+            console.log(`[GITHUB] ⚠️ Không thể tải: ${file} (download_url không tồn tại)`);
+            continue;
+          }
           const downloadCmd = `curl -H "Authorization: token ${this.token}" "${fileInfo.download_url}"`;
           const { stdout: fileContent } = await execAsync(downloadCmd);
           

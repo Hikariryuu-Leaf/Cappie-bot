@@ -1,0 +1,22 @@
+{
+  "sample_user_1": {
+    "id": "sample_user_1",
+    "username": "Sample User",
+    "balance": 1000,
+    "level": 1,
+    "xp": 0,
+    "joinDate": "2025-08-02T20:30:09.287Z",
+    "lastSeen": "2025-08-02T20:30:09.289Z",
+    "timeSpent": 0,
+    "inventory": [],
+    "settings": {
+      "notifications": true,
+      "language": "vi"
+    },
+    "cartridge": 0,
+    "voiceTime": 0,
+    "totalVoice": 0,
+    "lastClaim": 0,
+    "joinTime": 1754441611393
+  }
+}
