@@ -91,7 +91,7 @@ client.once('ready', async () => {
     console.log('[STARTUP] Initializing persistent storage system...');
     const persistentStorage = new PersistentStorage();
     persistentStorage.setupGracefulShutdown();
-    persistentStorage.startAutoSync();
+    persistentStorage.startAutoBackup();
     client.persistentStorage = persistentStorage; // Make it available globally
     
     // Start voice tracking

@@ -2,51 +2,36 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-// Persistent Storage Configuration
+// Persistent Storage Configuration - Tối ưu hóa cho User Data
 const PERSISTENT_CONFIG = {
   // Local storage paths
   localDataDir: './data',
   localBackupDir: './data/backups',
-  localManualBackupDir: './manual_backups',
+  manualBackupDir: './manual_backups',
   
-  // External storage options (for Render)
-  externalStorage: {
-    // GitHub as backup storage
-    github: {
-      enabled: true, // Enable GitHub sync
-      repo: process.env.GITHUB_REPO,
-      token: process.env.GITHUB_TOKEN,
-      branch: 'data-backup'
-    },
-    
-    // Cloud storage options
-    cloud: {
-      enabled: false,
-      provider: 'gdrive', // or 'dropbox', 'onedrive'
-      credentials: process.env.CLOUD_CREDENTIALS
-    }
-  },
+  // Chỉ backup User Data
+  dataFiles: ['users.json'],
   
-  // Auto-sync settings
-  autoSyncInterval: 5 * 60 * 1000, // 5 minutes
-  maxSyncRetries: 3,
-  syncTimeout: 30000 // 30 seconds
+  // Auto-backup settings
+  autoBackupInterval: 10 * 60 * 1000, // 10 phút
+  maxLocalBackups: 20, // Giữ 20 backup gần nhất
+  backupTimeout: 15000 // 15 giây timeout
 };
 
 class PersistentStorage {
   constructor() {
-    this.syncTimer = null;
-    this.lastSyncTime = 0;
-    this.syncInProgress = false;
+    this.backupTimer = null;
+    this.lastBackupTime = 0;
+    this.backupInProgress = false;
     this.ensureDirectories();
   }
 
-  // Ensure all directories exist
+  // Tạo thư mục cần thiết
   ensureDirectories() {
     const dirs = [
       PERSISTENT_CONFIG.localDataDir,
       PERSISTENT_CONFIG.localBackupDir,
-      PERSISTENT_CONFIG.localManualBackupDir
+      PERSISTENT_CONFIG.manualBackupDir
     ];
     
     dirs.forEach(dir => {
@@ -57,71 +42,84 @@ class PersistentStorage {
     });
   }
 
-  // Generate unique backup ID
+  // Tạo backup ID duy nhất
   generateBackupId() {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const randomId = crypto.randomBytes(4).toString('hex');
     return `backup_${timestamp}_${randomId}`;
   }
 
-  // Create comprehensive backup
-  async createComprehensiveBackup() {
+  // Tạo backup User Data
+  async createUserDataBackup() {
     const backupId = this.generateBackupId();
     const backupPath = path.join(PERSISTENT_CONFIG.localBackupDir, backupId);
     
     try {
       fs.mkdirSync(backupPath, { recursive: true });
       
-      // Backup all data files
-      const dataFiles = [
-        'users.json',
-        'shop.json', 
-        'emojis.json'
-      ];
-      
       let successCount = 0;
       const backupResults = [];
       
-      for (const file of dataFiles) {
-        const sourcePath = path.join(PERSISTENT_CONFIG.localDataDir, file);
-        if (fs.existsSync(sourcePath)) {
-          try {
-            const destPath = path.join(backupPath, file);
-            fs.copyFileSync(sourcePath, destPath);
-            successCount++;
-            backupResults.push(`✅ ${file}`);
-          } catch (error) {
-            console.error(`[PERSISTENT] Error backing up ${file}:`, error.message);
-            backupResults.push(`❌ ${file}`);
-          }
+      // Chỉ backup users.json
+      const sourcePath = path.join(PERSISTENT_CONFIG.localDataDir, 'users.json');
+      const destPath = path.join(backupPath, 'users.json');
+      
+      if (fs.existsSync(sourcePath)) {
+        try {
+          // Đọc và validate data trước khi backup
+          const userData = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+          
+          // Validate và clean data
+          const cleanedData = this.validateAndCleanUserData(userData);
+          
+          // Backup data đã được clean
+          fs.writeFileSync(destPath, JSON.stringify(cleanedData, null, 2));
+          successCount++;
+          backupResults.push(`✅ users.json (${Object.keys(cleanedData).length} users)`);
+          
+          console.log(`[PERSISTENT] User data validated and backed up: ${Object.keys(cleanedData).length} users`);
+        } catch (error) {
+          console.error(`[PERSISTENT] Error backing up users.json:`, error.message);
+          backupResults.push(`❌ users.json (${error.message})`);
         }
+      } else {
+        console.log('[PERSISTENT] users.json not found, creating empty backup');
+        fs.writeFileSync(destPath, JSON.stringify({}, null, 2));
+        successCount++;
+        backupResults.push(`✅ users.json (empty)`);
       }
       
-      // Create metadata
+      // Tạo metadata
       const metadata = {
         id: backupId,
         createdAt: new Date().toISOString(),
+        type: 'user_data_backup',
         files: backupResults,
         successCount,
-        totalFiles: dataFiles.length,
-        version: '1.0.0'
+        totalFiles: PERSISTENT_CONFIG.dataFiles.length,
+        userCount: successCount > 0 ? this.getUserCountFromBackup(backupPath) : 0,
+        version: '2.0.0'
       };
       
       const metadataPath = path.join(backupPath, 'metadata.json');
       fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
       
-      console.log(`[PERSISTENT] Comprehensive backup created: ${backupId} (${successCount}/${dataFiles.length} files)`);
+      console.log(`[PERSISTENT] User data backup created: ${backupId} (${successCount}/${PERSISTENT_CONFIG.dataFiles.length} files)`);
+      
+      // Cleanup old backups
+      this.cleanupOldBackups();
       
       return {
         success: true,
         backupId,
         successCount,
-        totalFiles: dataFiles.length,
+        totalFiles: PERSISTENT_CONFIG.dataFiles.length,
+        userCount: metadata.userCount,
         results: backupResults
       };
       
     } catch (error) {
-      console.error('[PERSISTENT] Error creating comprehensive backup:', error.message);
+      console.error('[PERSISTENT] Error creating user data backup:', error.message);
       return {
         success: false,
         error: error.message
@@ -129,356 +127,227 @@ class PersistentStorage {
     }
   }
 
-  // Validate GitHub configuration
-  async validateGitHubConfig() {
-    try {
-      console.log('[PERSISTENT] Validating GitHub configuration...');
-      
-      if (!PERSISTENT_CONFIG.externalStorage.github.repo || !PERSISTENT_CONFIG.externalStorage.github.token) {
-        console.log('[PERSISTENT] Missing GitHub configuration');
-        console.log(`[PERSISTENT] GITHUB_REPO: ${PERSISTENT_CONFIG.externalStorage.github.repo || 'NOT SET'}`);
-        console.log(`[PERSISTENT] GITHUB_TOKEN: ${PERSISTENT_CONFIG.externalStorage.github.token ? 'SET' : 'NOT SET'}`);
-        return { valid: false, error: 'GitHub repository or token not configured' };
-      }
-
-      // Test GitHub API access
-      const { exec } = require('child_process');
-      const util = require('util');
-      const execAsync = util.promisify(exec);
-
-      console.log(`[PERSISTENT] Testing GitHub API connection to: ${PERSISTENT_CONFIG.externalStorage.github.repo}`);
-      
-      const testCmd = `curl -H "Authorization: token ${PERSISTENT_CONFIG.externalStorage.github.token}" https://api.github.com/repos/${PERSISTENT_CONFIG.externalStorage.github.repo}`;
-      
-      // Add timeout for GitHub validation
-      const execPromise = execAsync(testCmd);
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('GitHub validation timed out after 8 seconds')), 8000);
-      });
-      
-      const { stdout } = await Promise.race([execPromise, timeoutPromise]);
-      const repoInfo = JSON.parse(stdout);
-
-      console.log(`[PERSISTENT] GitHub API response: ${JSON.stringify(repoInfo, null, 2)}`);
-
-      if (repoInfo.message === 'Not Found') {
-        console.log('[PERSISTENT] Repository not found or access denied');
-        return { valid: false, error: 'Repository not found or access denied' };
-      }
-
-      if (repoInfo.message && repoInfo.message.includes('Bad credentials')) {
-        console.log('[PERSISTENT] Invalid token');
-        return { valid: false, error: 'Invalid GitHub token' };
-      }
-
-      if (repoInfo.message && repoInfo.message.includes('API rate limit exceeded')) {
-        console.log('[PERSISTENT] API rate limit exceeded');
-        return { valid: false, error: 'GitHub API rate limit exceeded' };
-      }
-
-      console.log(`[PERSISTENT] GitHub validation successful: ${repoInfo.full_name}`);
-      return { valid: true, repoInfo };
-    } catch (error) {
-      console.error('[PERSISTENT] GitHub validation error:', error.message);
-      console.error('[PERSISTENT] Error details:', error);
-      return { valid: false, error: `GitHub validation failed: ${error.message}` };
-    }
-  }
-
-  // Sync to external storage
-  async syncToExternalStorage() {
-    if (this.syncInProgress) {
-      console.log('[PERSISTENT] Sync already in progress, skipping...');
-      return { success: false, error: 'Sync already in progress' };
-    }
-
-    this.syncInProgress = true;
-    
-    try {
-      console.log('[PERSISTENT] Starting external sync...');
-      
-      // Create comprehensive backup first
-      const backupResult = await this.createComprehensiveBackup();
-      if (!backupResult.success) {
-        throw new Error(`Backup failed: ${backupResult.error}`);
-      }
-
-      // Try GitHub sync first
-      if (PERSISTENT_CONFIG.externalStorage.github.enabled) {
-        // Validate GitHub config first
-        const validation = await this.validateGitHubConfig();
-        if (!validation.valid) {
-          console.log(`[PERSISTENT] GitHub validation failed: ${validation.error}`);
-          throw new Error(`GitHub validation failed: ${validation.error}`);
-        }
-
-        const githubResult = await this.syncToGitHub(backupResult.backupId);
-        if (githubResult.success) {
-          console.log('[PERSISTENT] GitHub sync completed successfully');
-          this.lastSyncTime = Date.now();
-          this.syncInProgress = false;
-          return { success: true, method: 'github', backupId: backupResult.backupId };
-        } else {
-          console.log(`[PERSISTENT] GitHub sync failed: ${githubResult.error}`);
-        }
-      }
-
-      // Try cloud storage as fallback
-      if (PERSISTENT_CONFIG.externalStorage.cloud.enabled) {
-        const cloudResult = await this.syncToCloud(backupResult.backupId);
-        if (cloudResult.success) {
-          console.log('[PERSISTENT] Cloud sync completed successfully');
-          this.lastSyncTime = Date.now();
-          this.syncInProgress = false;
-          return { success: true, method: 'cloud', backupId: backupResult.backupId };
-        }
-      }
-
-      throw new Error('No external storage available or all sync methods failed');
-      
-    } catch (error) {
-      console.error('[PERSISTENT] External sync failed:', error.message);
-      this.syncInProgress = false;
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Sync to GitHub
-  async syncToGitHub(backupId) {
-    try {
-      if (!PERSISTENT_CONFIG.externalStorage.github.repo || !PERSISTENT_CONFIG.externalStorage.github.token) {
-        throw new Error('GitHub configuration missing');
-      }
-
-      const backupPath = path.join(PERSISTENT_CONFIG.localBackupDir, backupId);
-      if (!fs.existsSync(backupPath)) {
-        throw new Error(`Backup ${backupId} not found`);
-      }
-
-      // Use git commands to sync to GitHub
-      const { exec } = require('child_process');
-      const util = require('util');
-      const execAsync = util.promisify(exec);
-
-      // Create a temporary directory for GitHub sync
-      const tempGitDir = path.join('./temp', 'github-sync');
-      if (fs.existsSync(tempGitDir)) {
-        fs.rmSync(tempGitDir, { recursive: true, force: true });
-      }
-      fs.mkdirSync(tempGitDir, { recursive: true });
-
-      try {
-        // Configure git to avoid email issues
-        await execAsync('git config --global user.email "bot@cappie.com"');
-        await execAsync('git config --global user.name "Cappie Bot"');
-        
-        // Initialize git in temp directory
-        await execAsync('git init', { cwd: tempGitDir });
-        await execAsync(`git remote add origin https://${PERSISTENT_CONFIG.externalStorage.github.token}@github.com/${PERSISTENT_CONFIG.externalStorage.github.repo}.git`, { cwd: tempGitDir });
-        
-        // Create data-backup directory structure
-        const dataBackupDir = path.join(tempGitDir, 'data-backup');
-        fs.mkdirSync(dataBackupDir, { recursive: true });
-
-        // Copy backup to temp directory
-        const tempBackupDir = path.join(dataBackupDir, backupId);
-        fs.cpSync(backupPath, tempBackupDir, { recursive: true });
-
-        // Add and commit only the backup data
-        await execAsync('git add data-backup/', { cwd: tempGitDir });
-        
-        // Check if there are changes to commit
-        const { stdout: status } = await execAsync('git status --porcelain', { cwd: tempGitDir });
-        if (!status.trim()) {
-          console.log(`[PERSISTENT] No changes to commit for backup: ${backupId}`);
-          return { success: true, message: 'No changes detected' };
-        }
-
-        // Commit with backup info
-        const commitMessage = `Backup: ${backupId} - ${new Date().toISOString()}`;
-        await execAsync(`git commit -m "${commitMessage}"`, { cwd: tempGitDir });
-        
-        // Push to data-backup branch with force (always overwrite)
-        try {
-          console.log('[PERSISTENT] Pushing to data-backup branch...');
-          await execAsync('git push origin HEAD:data-backup --force', { cwd: tempGitDir });
-        } catch (pushError) {
-          // If branch doesn't exist, create it first
-          if (pushError.message.includes('does not exist')) {
-            console.log('[PERSISTENT] Creating data-backup branch...');
-            await execAsync('git push origin HEAD:data-backup --set-upstream', { cwd: tempGitDir });
-          } else {
-            throw pushError;
-          }
-        }
-        
-        console.log(`[PERSISTENT] GitHub sync completed for backup: ${backupId}`);
-        return { success: true };
-        
-      } finally {
-        // Clean up temp directory
-        if (fs.existsSync(tempGitDir)) {
-          fs.rmSync(tempGitDir, { recursive: true, force: true });
-        }
-      }
-      
-    } catch (error) {
-      console.error('[PERSISTENT] GitHub sync failed:', error.message);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Sync to cloud storage (placeholder)
-  async syncToCloud(backupId) {
-    // Placeholder for cloud storage sync
-    console.log(`[PERSISTENT] Cloud sync not implemented for backup: ${backupId}`);
-    return { success: false, error: 'Cloud sync not implemented' };
-  }
-
-  // Restore from external storage
-  async restoreFromExternalStorage(backupId = null) {
-    try {
-      console.log('[PERSISTENT] Attempting to restore from external storage...');
-      console.log(`[PERSISTENT] Backup ID provided: ${backupId || 'null (will use latest)'}`);
-      
-      // Try to restore from GitHub first if enabled
-      if (PERSISTENT_CONFIG.externalStorage.github.enabled) {
-        console.log('[PERSISTENT] GitHub storage enabled, validating...');
-        const validation = await this.validateGitHubConfig();
-        if (validation.valid) {
-          console.log('[PERSISTENT] GitHub available, attempting GitHub restore...');
-          const GitHubRestore = require('./githubRestore');
-          const githubRestorer = new GitHubRestore();
-          
-          if (backupId) {
-            console.log(`[PERSISTENT] Attempting to restore specific backup: ${backupId}`);
-            const result = await githubRestorer.restoreFromBackup(backupId);
-            if (result.success) {
-              console.log(`[PERSISTENT] GitHub restore successful: ${result.restoredCount} files`);
-              return { success: true, successCount: result.restoredCount, method: 'github' };
-            } else {
-              console.log(`[PERSISTENT] GitHub restore failed: ${result.error}`);
-            }
-          } else {
-            console.log('[PERSISTENT] Attempting to restore latest backup from GitHub');
-            const result = await githubRestorer.restoreLatest();
-            if (result.success) {
-              console.log(`[PERSISTENT] GitHub restore successful: ${result.restoredCount} files`);
-              return { success: true, successCount: result.restoredCount, method: 'github' };
-            } else {
-              console.log(`[PERSISTENT] GitHub restore failed: ${result.error}`);
-            }
-          }
-          
-          console.log('[PERSISTENT] GitHub restore failed, trying local restore...');
-        } else {
-          console.log(`[PERSISTENT] GitHub validation failed: ${validation.error}`);
-        }
-      } else {
-        console.log('[PERSISTENT] GitHub storage disabled, using local restore only');
-      }
-      
-      // Fallback to local restore
-      console.log('[PERSISTENT] Attempting local restore...');
-      
-      // Try to restore from latest backup if no specific ID
-      if (!backupId) {
-        console.log('[PERSISTENT] No backup ID provided, getting latest backup...');
-        const backups = this.getAvailableBackups();
-        console.log(`[PERSISTENT] Found ${backups.length} available backups`);
-        if (backups.length === 0) {
-          throw new Error('No backups available for restore');
-        }
-        backupId = backups[0].id; // Use latest backup
-        console.log(`[PERSISTENT] Using latest backup: ${backupId}`);
-      }
-      
-      const backupPath = path.join(PERSISTENT_CONFIG.localBackupDir, backupId);
-      console.log(`[PERSISTENT] Checking backup path: ${backupPath}`);
-      if (!fs.existsSync(backupPath)) {
-        throw new Error(`Backup ${backupId} not found locally`);
-      }
-      
-      // Restore files with timeout
-      const filesToRestore = ['users.json', 'shop.json', 'emojis.json'];
-      let successCount = 0;
-      
-      for (const file of filesToRestore) {
-        const sourcePath = path.join(backupPath, file);
-        const destPath = path.join(PERSISTENT_CONFIG.localDataDir, file);
-        
-        console.log(`[PERSISTENT] Checking file: ${sourcePath}`);
-        if (fs.existsSync(sourcePath)) {
-          try {
-            // Use fs.promises for async operation with timeout
-            const fsPromises = require('fs').promises;
-            await fsPromises.copyFile(sourcePath, destPath);
-            successCount++;
-            console.log(`[PERSISTENT] Restored: ${file}`);
-          } catch (error) {
-            console.error(`[PERSISTENT] Error restoring ${file}:`, error.message);
-          }
-        } else {
-          console.log(`[PERSISTENT] File not found: ${sourcePath}`);
-        }
-      }
-      
-      console.log(`[PERSISTENT] Local restore completed: ${successCount}/${filesToRestore.length} files`);
-      return { success: true, successCount, method: 'local' };
-      
-    } catch (error) {
-      console.error('[PERSISTENT] Restore failed:', error.message);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Get storage status
-  async getStorageStatus() {
-    const status = {
-      connected: false,
-      method: null,
-      url: null,
-      error: null
+  // Validate và clean user data
+  validateAndCleanUserData(userData) {
+    const cleanedData = {};
+    const defaultUserData = {
+      cartridge: 0,
+      voiceTime: 0,
+      totalVoice: 0,
+      lastClaim: 0
     };
 
-    try {
-      // Check GitHub first
-      if (PERSISTENT_CONFIG.externalStorage.github.enabled) {
-        const validation = await this.validateGitHubConfig();
-        if (validation.valid) {
-          status.connected = true;
-          status.method = 'GitHub';
-          status.url = `https://github.com/${PERSISTENT_CONFIG.externalStorage.github.repo}`;
-          return status;
-        } else {
-          status.error = validation.error;
+    for (const [userId, user] of Object.entries(userData)) {
+      if (userId && typeof userId === 'string') {
+        cleanedData[userId] = {
+          ...defaultUserData,
+          ...user
+        };
+
+        // Validate data types
+        if (typeof cleanedData[userId].cartridge !== 'number' || cleanedData[userId].cartridge < 0) {
+          cleanedData[userId].cartridge = 0;
+        }
+        if (typeof cleanedData[userId].voiceTime !== 'number' || cleanedData[userId].voiceTime < 0) {
+          cleanedData[userId].voiceTime = 0;
+        }
+        if (typeof cleanedData[userId].totalVoice !== 'number' || cleanedData[userId].totalVoice < 0) {
+          cleanedData[userId].totalVoice = 0;
+        }
+        if (typeof cleanedData[userId].lastClaim !== 'number' || cleanedData[userId].lastClaim < 0) {
+          cleanedData[userId].lastClaim = 0;
         }
       }
+    }
 
-      // Check cloud storage
-      if (PERSISTENT_CONFIG.externalStorage.cloud.enabled) {
-        status.method = 'Cloud';
-        status.error = 'Cloud storage not implemented';
+    return cleanedData;
+  }
+
+  // Lấy số lượng user từ backup
+  getUserCountFromBackup(backupPath) {
+    try {
+      const userDataPath = path.join(backupPath, 'users.json');
+      if (fs.existsSync(userDataPath)) {
+        const userData = JSON.parse(fs.readFileSync(userDataPath, 'utf8'));
+        return Object.keys(userData).length;
       }
-
-      return status;
     } catch (error) {
-      status.error = error.message;
-      return status;
+      console.error('[PERSISTENT] Error getting user count:', error.message);
+    }
+    return 0;
+  }
+
+  // Cleanup old backups
+  cleanupOldBackups() {
+    try {
+      const backups = this.getAvailableBackups();
+      if (backups.length > PERSISTENT_CONFIG.maxLocalBackups) {
+        const backupsToDelete = backups.slice(PERSISTENT_CONFIG.maxLocalBackups);
+        backupsToDelete.forEach(backup => {
+          try {
+            fs.rmSync(backup.path, { recursive: true, force: true });
+            console.log(`[PERSISTENT] Deleted old backup: ${backup.id}`);
+          } catch (error) {
+            console.error(`[PERSISTENT] Error deleting backup ${backup.id}:`, error.message);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('[PERSISTENT] Error cleaning up old backups:', error.message);
     }
   }
 
-  // Get available backups
+  // Restore từ manual backup
+  async restoreFromManualBackup(backupName) {
+    try {
+      console.log(`[PERSISTENT] Attempting to restore from manual backup: ${backupName}`);
+      
+      const manualBackupPath = path.join(PERSISTENT_CONFIG.manualBackupDir, backupName);
+      if (!fs.existsSync(manualBackupPath)) {
+        throw new Error(`Manual backup '${backupName}' not found`);
+      }
+
+      // Kiểm tra xem có phải là thư mục không
+      const stats = fs.statSync(manualBackupPath);
+      if (!stats.isDirectory()) {
+        throw new Error(`'${backupName}' is not a directory`);
+      }
+
+      // Tìm file users.json trong manual backup
+      const userDataPath = path.join(manualBackupPath, 'users.json');
+      if (!fs.existsSync(userDataPath)) {
+        throw new Error(`users.json not found in manual backup '${backupName}'`);
+      }
+
+      // Đọc và validate data từ manual backup
+      const backupUserData = JSON.parse(fs.readFileSync(userDataPath, 'utf8'));
+      const validatedData = this.validateAndCleanUserData(backupUserData);
+
+      // Tạo backup hiện tại trước khi restore
+      console.log('[PERSISTENT] Creating backup of current data before restore...');
+      await this.createUserDataBackup();
+
+      // Restore data
+      const currentUserDataPath = path.join(PERSISTENT_CONFIG.localDataDir, 'users.json');
+      fs.writeFileSync(currentUserDataPath, JSON.stringify(validatedData, null, 2));
+
+      console.log(`[PERSISTENT] Restore completed: ${Object.keys(validatedData).length} users restored`);
+      return {
+        success: true,
+        userCount: Object.keys(validatedData).length,
+        backupName: backupName
+      };
+
+    } catch (error) {
+      console.error('[PERSISTENT] Manual backup restore failed:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Restore từ local backup
+  async restoreFromLocalBackup(backupId = null) {
+    try {
+      console.log('[PERSISTENT] Attempting to restore from local backup...');
+      
+      // Nếu không có backupId, sử dụng backup mới nhất
+      if (!backupId) {
+        const backups = this.getAvailableBackups();
+        if (backups.length === 0) {
+          throw new Error('No local backups available');
+        }
+        backupId = backups[0].id;
+        console.log(`[PERSISTENT] Using latest backup: ${backupId}`);
+      }
+
+      const backupPath = path.join(PERSISTENT_CONFIG.localBackupDir, backupId);
+      if (!fs.existsSync(backupPath)) {
+        throw new Error(`Local backup '${backupId}' not found`);
+      }
+
+      const userDataPath = path.join(backupPath, 'users.json');
+      if (!fs.existsSync(userDataPath)) {
+        throw new Error(`users.json not found in backup '${backupId}'`);
+      }
+
+      // Đọc và validate data
+      const backupUserData = JSON.parse(fs.readFileSync(userDataPath, 'utf8'));
+      const validatedData = this.validateAndCleanUserData(backupUserData);
+
+      // Tạo backup hiện tại trước khi restore
+      console.log('[PERSISTENT] Creating backup of current data before restore...');
+      await this.createUserDataBackup();
+
+      // Restore data
+      const currentUserDataPath = path.join(PERSISTENT_CONFIG.localDataDir, 'users.json');
+      fs.writeFileSync(currentUserDataPath, JSON.stringify(validatedData, null, 2));
+
+      console.log(`[PERSISTENT] Local restore completed: ${Object.keys(validatedData).length} users restored`);
+      return {
+        success: true,
+        userCount: Object.keys(validatedData).length,
+        backupId: backupId
+      };
+
+    } catch (error) {
+      console.error('[PERSISTENT] Local backup restore failed:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Lấy danh sách manual backups
+  getManualBackups() {
+    try {
+      const backups = [];
+      if (fs.existsSync(PERSISTENT_CONFIG.manualBackupDir)) {
+        const items = fs.readdirSync(PERSISTENT_CONFIG.manualBackupDir);
+        
+        for (const item of items) {
+          const fullPath = path.join(PERSISTENT_CONFIG.manualBackupDir, item);
+          if (fs.statSync(fullPath).isDirectory()) {
+            const userDataPath = path.join(fullPath, 'users.json');
+            if (fs.existsSync(userDataPath)) {
+              try {
+                const userData = JSON.parse(fs.readFileSync(userDataPath, 'utf8'));
+                const stats = fs.statSync(fullPath);
+                backups.push({
+                  name: item,
+                  path: fullPath,
+                  userCount: Object.keys(userData).length,
+                  createdAt: stats.mtime,
+                  time: stats.mtime.getTime()
+                });
+              } catch (error) {
+                console.error(`[PERSISTENT] Error reading manual backup ${item}:`, error.message);
+              }
+            }
+          }
+        }
+      }
+      
+      // Sắp xếp theo thời gian (mới nhất trước)
+      return backups.sort((a, b) => b.time - a.time);
+      
+    } catch (error) {
+      console.error('[PERSISTENT] Error getting manual backups:', error.message);
+      return [];
+    }
+  }
+
+  // Lấy danh sách local backups
   getAvailableBackups() {
     try {
       const backups = [];
-      const backupDir = PERSISTENT_CONFIG.localBackupDir;
-      
-      if (fs.existsSync(backupDir)) {
-        const items = fs.readdirSync(backupDir);
+      if (fs.existsSync(PERSISTENT_CONFIG.localBackupDir)) {
+        const items = fs.readdirSync(PERSISTENT_CONFIG.localBackupDir);
         
         for (const item of items) {
-          const fullPath = path.join(backupDir, item);
+          const fullPath = path.join(PERSISTENT_CONFIG.localBackupDir, item);
           if (fs.statSync(fullPath).isDirectory()) {
             const metadataPath = path.join(fullPath, 'metadata.json');
             if (fs.existsSync(metadataPath)) {
@@ -498,7 +367,7 @@ class PersistentStorage {
         }
       }
       
-      // Sort by time (newest first)
+      // Sắp xếp theo thời gian (mới nhất trước)
       return backups.sort((a, b) => b.time - a.time);
       
     } catch (error) {
@@ -507,28 +376,28 @@ class PersistentStorage {
     }
   }
 
-  // Start auto-sync
-  startAutoSync() {
-    console.log('[PERSISTENT] Starting auto-sync system...');
+  // Bắt đầu auto-backup
+  startAutoBackup() {
+    console.log('[PERSISTENT] Starting auto-backup system...');
     
-    // Initial sync
-    this.syncToExternalStorage();
+    // Backup đầu tiên
+    this.createUserDataBackup();
     
-    // Set up interval
-    this.syncTimer = setInterval(() => {
+    // Thiết lập interval
+    this.backupTimer = setInterval(() => {
       const now = Date.now();
-      if (now - this.lastSyncTime > PERSISTENT_CONFIG.autoSyncInterval) {
-        this.syncToExternalStorage();
+      if (now - this.lastBackupTime > PERSISTENT_CONFIG.autoBackupInterval) {
+        this.createUserDataBackup();
       }
-    }, PERSISTENT_CONFIG.autoSyncInterval);
+    }, PERSISTENT_CONFIG.autoBackupInterval);
   }
 
-  // Stop auto-sync
-  stopAutoSync() {
-    if (this.syncTimer) {
-      clearInterval(this.syncTimer);
-      this.syncTimer = null;
-      console.log('[PERSISTENT] Auto-sync stopped');
+  // Dừng auto-backup
+  stopAutoBackup() {
+    if (this.backupTimer) {
+      clearInterval(this.backupTimer);
+      this.backupTimer = null;
+      console.log('[PERSISTENT] Auto-backup stopped');
     }
   }
 
@@ -536,7 +405,7 @@ class PersistentStorage {
   async emergencyBackup() {
     console.log('[PERSISTENT] Creating emergency backup...');
     try {
-      const result = await this.createComprehensiveBackup();
+      const result = await this.createUserDataBackup();
       if (result.success) {
         console.log('[PERSISTENT] Emergency backup created successfully');
       }
@@ -547,7 +416,7 @@ class PersistentStorage {
     }
   }
 
-  // Setup graceful shutdown
+  // Thiết lập graceful shutdown
   setupGracefulShutdown() {
     const shutdownHandler = async () => {
       console.log('[PERSISTENT] Received shutdown signal, creating emergency backup...');
@@ -562,6 +431,23 @@ class PersistentStorage {
       await this.emergencyBackup();
       process.exit(1);
     });
+  }
+
+  // Lấy trạng thái hệ thống
+  getSystemStatus() {
+    const localBackups = this.getAvailableBackups();
+    const manualBackups = this.getManualBackups();
+    
+    return {
+      autoBackupEnabled: this.backupTimer !== null,
+      lastBackupTime: this.lastBackupTime,
+      localBackupCount: localBackups.length,
+      manualBackupCount: manualBackups.length,
+      latestLocalBackup: localBackups.length > 0 ? localBackups[0].id : null,
+      latestManualBackup: manualBackups.length > 0 ? manualBackups[0].name : null,
+      autoBackupInterval: PERSISTENT_CONFIG.autoBackupInterval,
+      maxLocalBackups: PERSISTENT_CONFIG.maxLocalBackups
+    };
   }
 }
 

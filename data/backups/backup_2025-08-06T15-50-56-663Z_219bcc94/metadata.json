@@ -1,0 +1,12 @@
+{
+  "id": "backup_2025-08-06T15-50-56-663Z_219bcc94",
+  "createdAt": "2025-08-06T15:50:56.692Z",
+  "type": "user_data_backup",
+  "files": [
+    "✅ users.json (1 users)"
+  ],
+  "successCount": 1,
+  "totalFiles": 1,
+  "userCount": 1,
+  "version": "2.0.0"
+}
