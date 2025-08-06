@@ -166,7 +166,11 @@ module.exports = {
         .setColor('#ff4444')
         .setTimestamp();
       
-      await interaction.editReply({ embeds: [errorEmbed] });
+      try {
+        await interaction.editReply({ embeds: [errorEmbed] });
+      } catch (replyError) {
+        console.error('Không thể gửi thông báo lỗi:', replyError);
+      }
     }
   },
 
@@ -183,12 +187,16 @@ module.exports = {
       await interaction.editReply({ embeds: [embed] });
 
       // Restore from external storage
+      console.log(`[PERSISTENT COMMAND] Starting restore with backup ID: ${backupId || 'latest'}`);
       const restoreResult = await persistentStorage.restoreFromExternalStorage(backupId);
+      console.log(`[PERSISTENT COMMAND] Restore result:`, restoreResult);
       
-      if (!restoreResult.success) {
+      if (!restoreResult || !restoreResult.success) {
+        const errorMessage = restoreResult?.error || 'Unknown error occurred';
+        console.error(`[PERSISTENT COMMAND] Restore failed: ${errorMessage}`);
         const errorEmbed = new EmbedBuilder()
           .setTitle('❌ Lỗi Khôi Phục')
-          .setDescription(`Không thể khôi phục dữ liệu: ${restoreResult.error}`)
+          .setDescription(`Không thể khôi phục dữ liệu: ${errorMessage}`)
           .setColor('#ff4444')
           .setTimestamp();
         
@@ -206,7 +214,7 @@ module.exports = {
           },
           { 
             name: '📊 Files Restored', 
-            value: `${restoreResult.successCount}/3 files`, 
+            value: `${restoreResult.successCount || 0}/3 files`, 
             inline: true 
           },
           { 
@@ -238,7 +246,11 @@ module.exports = {
         .setColor('#ff4444')
         .setTimestamp();
       
-      await interaction.editReply({ embeds: [errorEmbed] });
+      try {
+        await interaction.editReply({ embeds: [errorEmbed] });
+      } catch (replyError) {
+        console.error('Không thể gửi thông báo lỗi:', replyError);
+      }
     }
   },
 
@@ -291,7 +303,11 @@ module.exports = {
         .setColor('#ff4444')
         .setTimestamp();
       
-      await interaction.editReply({ embeds: [errorEmbed] });
+      try {
+        await interaction.editReply({ embeds: [errorEmbed] });
+      } catch (replyError) {
+        console.error('Không thể gửi thông báo lỗi:', replyError);
+      }
     }
   },
 
@@ -340,7 +356,11 @@ module.exports = {
         .setColor('#ff4444')
         .setTimestamp();
       
-      await interaction.editReply({ embeds: [errorEmbed] });
+      try {
+        await interaction.editReply({ embeds: [errorEmbed] });
+      } catch (replyError) {
+        console.error('Không thể gửi thông báo lỗi:', replyError);
+      }
     }
   },
 
@@ -389,7 +409,11 @@ module.exports = {
         .setColor('#ff4444')
         .setTimestamp();
       
-      await interaction.editReply({ embeds: [errorEmbed] });
+      try {
+        await interaction.editReply({ embeds: [errorEmbed] });
+      } catch (replyError) {
+        console.error('Không thể gửi thông báo lỗi:', replyError);
+      }
     }
   },
 

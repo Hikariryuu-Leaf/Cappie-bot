@@ -332,31 +332,43 @@ class PersistentStorage {
   async restoreFromExternalStorage(backupId = null) {
     try {
       console.log('[PERSISTENT] Attempting to restore from external storage...');
+      console.log(`[PERSISTENT] Backup ID provided: ${backupId || 'null (will use latest)'}`);
       
       // Try to restore from GitHub first if enabled
       if (PERSISTENT_CONFIG.externalStorage.github.enabled) {
+        console.log('[PERSISTENT] GitHub storage enabled, validating...');
         const validation = await this.validateGitHubConfig();
         if (validation.valid) {
           console.log('[PERSISTENT] GitHub available, attempting GitHub restore...');
-          const githubRestore = require('./githubRestore');
-          const githubRestorer = new githubRestore();
+          const GitHubRestore = require('./githubRestore');
+          const githubRestorer = new GitHubRestore();
           
           if (backupId) {
+            console.log(`[PERSISTENT] Attempting to restore specific backup: ${backupId}`);
             const result = await githubRestorer.restoreFromBackup(backupId);
             if (result.success) {
               console.log(`[PERSISTENT] GitHub restore successful: ${result.restoredCount} files`);
               return { success: true, successCount: result.restoredCount, method: 'github' };
+            } else {
+              console.log(`[PERSISTENT] GitHub restore failed: ${result.error}`);
             }
           } else {
+            console.log('[PERSISTENT] Attempting to restore latest backup from GitHub');
             const result = await githubRestorer.restoreLatest();
             if (result.success) {
               console.log(`[PERSISTENT] GitHub restore successful: ${result.restoredCount} files`);
               return { success: true, successCount: result.restoredCount, method: 'github' };
+            } else {
+              console.log(`[PERSISTENT] GitHub restore failed: ${result.error}`);
             }
           }
           
           console.log('[PERSISTENT] GitHub restore failed, trying local restore...');
+        } else {
+          console.log(`[PERSISTENT] GitHub validation failed: ${validation.error}`);
         }
+      } else {
+        console.log('[PERSISTENT] GitHub storage disabled, using local restore only');
       }
       
       // Fallback to local restore
@@ -364,14 +376,18 @@ class PersistentStorage {
       
       // Try to restore from latest backup if no specific ID
       if (!backupId) {
+        console.log('[PERSISTENT] No backup ID provided, getting latest backup...');
         const backups = this.getAvailableBackups();
+        console.log(`[PERSISTENT] Found ${backups.length} available backups`);
         if (backups.length === 0) {
           throw new Error('No backups available for restore');
         }
         backupId = backups[0].id; // Use latest backup
+        console.log(`[PERSISTENT] Using latest backup: ${backupId}`);
       }
       
       const backupPath = path.join(PERSISTENT_CONFIG.localBackupDir, backupId);
+      console.log(`[PERSISTENT] Checking backup path: ${backupPath}`);
       if (!fs.existsSync(backupPath)) {
         throw new Error(`Backup ${backupId} not found locally`);
       }
@@ -384,6 +400,7 @@ class PersistentStorage {
         const sourcePath = path.join(backupPath, file);
         const destPath = path.join(PERSISTENT_CONFIG.localDataDir, file);
         
+        console.log(`[PERSISTENT] Checking file: ${sourcePath}`);
         if (fs.existsSync(sourcePath)) {
           try {
             fs.copyFileSync(sourcePath, destPath);
@@ -392,6 +409,8 @@ class PersistentStorage {
           } catch (error) {
             console.error(`[PERSISTENT] Error restoring ${file}:`, error.message);
           }
+        } else {
+          console.log(`[PERSISTENT] File not found: ${sourcePath}`);
         }
       }
       
