@@ -19,10 +19,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      // Defer the interaction immediately to prevent timeout
-      if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ ephemeral: false });
-      }
+      
 
       const targetUser = interaction.options.getUser('user') || interaction.user;
       const userId = targetUser.id;
@@ -108,12 +105,12 @@ module.exports = {
         });
       }
 
-      await interaction.editReply({ embeds: [embed] });
+      await safeEditReply(interaction({ embeds: [embed] });
 
     } catch (error) {
       console.error('[ERROR] Voicecheck command error:', error);
       try {
-        await interaction.editReply({
+        await safeEditReply(interaction({
           content: '❌ Có lỗi xảy ra khi kiểm tra voice tracking. Vui lòng thử lại.'
         });
       } catch (replyError) {

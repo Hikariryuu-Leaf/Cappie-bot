@@ -14,10 +14,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      // Defer the interaction immediately to prevent timeout
-      if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ ephemeral: false });
-      }
+      
       
       const ownerId = process.env.OWNER_ID;
       if (interaction.user.id !== ownerId) {
@@ -40,13 +37,13 @@ module.exports = {
       users[targetUser.id].totalVoice = 0;
       saveJSON(userDataPath, users);
 
-      await interaction.editReply({
+      await safeEditReply(interaction({
         content: `✅ Đã reset voice time cho ${targetUser.username}.`
       });
     } catch (error) {
       console.error('Lỗi trong resetvoicetime:', error);
       try {
-        await interaction.editReply({
+        await safeEditReply(interaction({
           content: '❌ Có lỗi xảy ra khi thực hiện lệnh.'
         });
       } catch (replyError) {

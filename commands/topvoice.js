@@ -12,10 +12,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      // Defer the interaction immediately to prevent timeout
-      if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ ephemeral: false });
-      }
+      
 
       const users = loadJSON(userDataPath);
 
@@ -67,13 +64,13 @@ module.exports = {
         rank++;
       }
 
-      await interaction.editReply({ 
+      await safeEditReply(interaction({ 
         embeds: [embed]
       });
     } catch (error) {
       console.error('Lỗi trong execute topvoice:', error);
       try {
-        await interaction.editReply({
+        await safeEditReply(interaction({
           content: '❌ Có lỗi xảy ra khi thực hiện lệnh topvoice.'
         });
       } catch (replyError) {

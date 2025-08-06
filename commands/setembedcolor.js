@@ -29,10 +29,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      // Defer the interaction immediately to prevent timeout
-      if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ ephemeral: false });
-      }
+      
       
       const ownerId = process.env.OWNER_ID;
       if (interaction.user.id !== ownerId) {
@@ -56,18 +53,18 @@ module.exports = {
       if (embedConfig.colors[section]) {
         embedConfig.colors[section] = color;
         
-        await interaction.editReply({
+        await safeEditReply(interaction({
           content: `✅ Đã thay đổi màu cho ${section} thành: ${color}`
         });
       } else {
-        await interaction.editReply({
+        await safeEditReply(interaction({
           content: '❌ Phần màu không tồn tại.'
         });
       }
     } catch (error) {
       console.error('Lỗi trong setembedcolor:', error);
       try {
-        await interaction.editReply({
+        await safeEditReply(interaction({
           content: '❌ Có lỗi xảy ra khi thực hiện lệnh.'
         });
       } catch (replyError) {

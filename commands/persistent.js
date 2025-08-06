@@ -1,10 +1,11 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { safeReply } = require('../utils/interactionHelper');
+const { safeEditReply } = require('../utils/interactionHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('persistent')
-    .setDescription('Quản lý persistent storage để bảo vệ dữ liệu')
+    .setDescription('Quản lý persistent storage và backup system')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand(subcommand =>
       subcommand
         .setName('backup')
@@ -13,12 +14,12 @@ module.exports = {
     .addSubcommand(subcommand =>
       subcommand
         .setName('restore')
-        .setDescription('Khôi phục dữ liệu từ external storage')
+        .setDescription('Khôi phục dữ liệu từ backup')
         .addStringOption(option =>
           option
             .setName('backup_id')
-            .setDescription('ID của backup để khôi phục (để trống để dùng backup mới nhất)')
-            .setRequired(false)
+            .setDescription('ID của backup muốn khôi phục')
+            .setRequired(true)
         )
     )
     .addSubcommand(subcommand =>
@@ -29,38 +30,21 @@ module.exports = {
     .addSubcommand(subcommand =>
       subcommand
         .setName('sync')
-        .setDescription('Đồng bộ dữ liệu lên external storage ngay lập tức')
+        .setDescription('Sync dữ liệu ngay lập tức lên external storage')
     )
     .addSubcommand(subcommand =>
       subcommand
         .setName('status')
-        .setDescription('Kiểm tra trạng thái cấu hình và kết nối external storage')
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        .setDescription('Kiểm tra trạng thái persistent storage system')
+    ),
 
   async execute(interaction) {
     try {
-      // Check if interaction is still valid
-      if (interaction.isExpired()) {
-        console.log('[PERSISTENT] Interaction already expired');
-        return;
-      }
-
-      // Defer the interaction immediately to prevent timeout
-      if (!interaction.deferred && !interaction.replied) {
-        try {
-          await interaction.deferReply({ ephemeral: false });
-        } catch (deferError) {
-          console.error('[PERSISTENT] Failed to defer interaction:', deferError);
-          return;
-        }
-      }
-      
       const subcommand = interaction.options.getSubcommand();
       const persistentStorage = interaction.client.persistentStorage;
       
       if (!persistentStorage) {
-        return interaction.editReply({
+        return await safeEditReply(interaction, {
           content: '❌ Persistent storage system chưa được khởi tạo.'
         });
       }
@@ -94,14 +78,8 @@ module.exports = {
     } catch (error) {
       console.error('Lỗi trong execute persistent:', error);
       
-      // Check if interaction is still valid
-      if (interaction.isExpired()) {
-        console.log('[PERSISTENT] Interaction expired, cannot send error message');
-        return;
-      }
-      
       try {
-        await interaction.editReply({
+        await safeEditReply(interaction, {
           content: `❌ Có lỗi xảy ra khi thực hiện lệnh persistent: ${error.message}`
         });
       } catch (replyError) {
@@ -118,7 +96,7 @@ module.exports = {
         .setColor('#ffaa00')
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      await safeEditReply(interaction, { embeds: [embed] });
 
       // Create comprehensive backup with timeout
       const backupPromise = persistentStorage.createComprehensiveBackup();
@@ -135,7 +113,7 @@ module.exports = {
           .setColor('#ff4444')
           .setTimestamp();
         
-        return interaction.editReply({ embeds: [errorEmbed] });
+        return await safeEditReply(interaction, { embeds: [errorEmbed] });
       }
 
       // Sync to external storage with timeout
@@ -193,25 +171,19 @@ module.exports = {
         });
       }
 
-      await interaction.editReply({ embeds: [successEmbed] });
+      await safeEditReply(interaction, { embeds: [successEmbed] });
 
     } catch (error) {
       console.error('Lỗi tạo backup:', error);
       
-      // Check if interaction is still valid
-      if (interaction.isExpired()) {
-        console.log('[PERSISTENT] Interaction expired, cannot send error message');
-        return;
-      }
-      
-      const errorEmbed = new EmbedBuilder()
-        .setTitle('❌ Lỗi Tạo Backup')
-        .setDescription(`Có lỗi xảy ra khi tạo backup:\n\`${error.message}\``)
-        .setColor('#ff4444')
-        .setTimestamp();
-      
       try {
-        await interaction.editReply({ embeds: [errorEmbed] });
+        const errorEmbed = new EmbedBuilder()
+          .setTitle('❌ Lỗi Tạo Backup')
+          .setDescription(`Có lỗi xảy ra khi tạo backup:\n\`${error.message}\``)
+          .setColor('#ff4444')
+          .setTimestamp();
+        
+        await safeEditReply(interaction, { embeds: [errorEmbed] });
       } catch (replyError) {
         console.error('Không thể gửi thông báo lỗi:', replyError);
       }
@@ -228,7 +200,7 @@ module.exports = {
         .setColor('#ffaa00')
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      await safeEditReply(interaction, { embeds: [embed] });
 
       // Add timeout for restore operation
       const restorePromise = persistentStorage.restoreFromExternalStorage(backupId);
@@ -250,7 +222,7 @@ module.exports = {
           .setColor('#ff4444')
           .setTimestamp();
         
-        return interaction.editReply({ embeds: [errorEmbed] });
+        return await safeEditReply(interaction, { embeds: [errorEmbed] });
       }
 
       const successEmbed = new EmbedBuilder()
@@ -286,25 +258,19 @@ module.exports = {
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [successEmbed] });
+      await safeEditReply(interaction, { embeds: [successEmbed] });
 
     } catch (error) {
       console.error('Lỗi khôi phục backup:', error);
       
-      // Check if interaction is still valid
-      if (interaction.isExpired()) {
-        console.log('[PERSISTENT] Interaction expired, cannot send error message');
-        return;
-      }
-      
-      const errorEmbed = new EmbedBuilder()
-        .setTitle('❌ Lỗi Khôi Phục')
-        .setDescription(`Có lỗi xảy ra khi khôi phục backup:\n\`${error.message}\``)
-        .setColor('#ff4444')
-        .setTimestamp();
-      
       try {
-        await interaction.editReply({ embeds: [errorEmbed] });
+        const errorEmbed = new EmbedBuilder()
+          .setTitle('❌ Lỗi Khôi Phục')
+          .setDescription(`Có lỗi xảy ra khi khôi phục backup:\n\`${error.message}\``)
+          .setColor('#ff4444')
+          .setTimestamp();
+        
+        await safeEditReply(interaction, { embeds: [errorEmbed] });
       } catch (replyError) {
         console.error('Không thể gửi thông báo lỗi:', replyError);
       }
@@ -328,7 +294,7 @@ module.exports = {
           .setColor('#ffaa00')
           .setTimestamp();
         
-        return interaction.editReply({ embeds: [emptyEmbed] });
+        return await safeEditReply(interaction, { embeds: [emptyEmbed] });
       }
 
       const embed = new EmbedBuilder()
@@ -356,25 +322,19 @@ module.exports = {
         });
       }
 
-      await interaction.editReply({ embeds: [embed] });
+      await safeEditReply(interaction, { embeds: [embed] });
 
     } catch (error) {
       console.error('Lỗi liệt kê backup:', error);
       
-      // Check if interaction is still valid
-      if (interaction.isExpired()) {
-        console.log('[PERSISTENT] Interaction expired, cannot send error message');
-        return;
-      }
-      
-      const errorEmbed = new EmbedBuilder()
-        .setTitle('❌ Lỗi Liệt Kê Backup')
-        .setDescription(`Có lỗi xảy ra khi liệt kê backup:\n\`${error.message}\``)
-        .setColor('#ff4444')
-        .setTimestamp();
-      
       try {
-        await interaction.editReply({ embeds: [errorEmbed] });
+        const errorEmbed = new EmbedBuilder()
+          .setTitle('❌ Lỗi Liệt Kê Backup')
+          .setDescription(`Có lỗi xảy ra khi liệt kê backup:\n\`${error.message}\``)
+          .setColor('#ff4444')
+          .setTimestamp();
+        
+        await safeEditReply(interaction, { embeds: [errorEmbed] });
       } catch (replyError) {
         console.error('Không thể gửi thông báo lỗi:', replyError);
       }
@@ -389,7 +349,7 @@ module.exports = {
         .setColor('#ffaa00')
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      await safeEditReply(interaction, { embeds: [embed] });
 
       // Sync to external storage with timeout
       const syncPromise = persistentStorage.syncToExternalStorage();
@@ -421,25 +381,19 @@ module.exports = {
         .setThumbnail(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [resultEmbed] });
+      await safeEditReply(interaction, { embeds: [resultEmbed] });
 
     } catch (error) {
       console.error('Lỗi sync:', error);
       
-      // Check if interaction is still valid
-      if (interaction.isExpired()) {
-        console.log('[PERSISTENT] Interaction expired, cannot send error message');
-        return;
-      }
-      
-      const errorEmbed = new EmbedBuilder()
-        .setTitle('❌ Lỗi Sync')
-        .setDescription(`Có lỗi xảy ra khi sync dữ liệu:\n\`${error.message}\``)
-        .setColor('#ff4444')
-        .setTimestamp();
-      
       try {
-        await interaction.editReply({ embeds: [errorEmbed] });
+        const errorEmbed = new EmbedBuilder()
+          .setTitle('❌ Lỗi Sync')
+          .setDescription(`Có lỗi xảy ra khi sync dữ liệu:\n\`${error.message}\``)
+          .setColor('#ff4444')
+          .setTimestamp();
+        
+        await safeEditReply(interaction, { embeds: [errorEmbed] });
       } catch (replyError) {
         console.error('Không thể gửi thông báo lỗi:', replyError);
       }
@@ -454,7 +408,7 @@ module.exports = {
         .setColor('#ffaa00')
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      await safeEditReply(interaction, { embeds: [embed] });
 
       // Get storage status with timeout
       const statusPromise = persistentStorage.getStorageStatus();
@@ -487,25 +441,19 @@ module.exports = {
         });
       }
 
-      await interaction.editReply({ embeds: [statusEmbed] });
+      await safeEditReply(interaction, { embeds: [statusEmbed] });
 
     } catch (error) {
       console.error('Lỗi kiểm tra trạng thái:', error);
       
-      // Check if interaction is still valid
-      if (interaction.isExpired()) {
-        console.log('[PERSISTENT] Interaction expired, cannot send error message');
-        return;
-      }
-      
-      const errorEmbed = new EmbedBuilder()
-        .setTitle('❌ Lỗi Trạng Thái')
-        .setDescription(`Có lỗi xảy ra khi kiểm tra trạng thái:\n\`${error.message}\``)
-        .setColor('#ff4444')
-        .setTimestamp();
-      
       try {
-        await interaction.editReply({ embeds: [errorEmbed] });
+        const errorEmbed = new EmbedBuilder()
+          .setTitle('❌ Lỗi Trạng Thái')
+          .setDescription(`Có lỗi xảy ra khi kiểm tra trạng thái:\n\`${error.message}\``)
+          .setColor('#ff4444')
+          .setTimestamp();
+        
+        await safeEditReply(interaction, { embeds: [errorEmbed] });
       } catch (replyError) {
         console.error('Không thể gửi thông báo lỗi:', replyError);
       }

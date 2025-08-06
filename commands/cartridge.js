@@ -80,11 +80,6 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      // Defer the interaction immediately to prevent timeout
-      if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ ephemeral: false });
-      }
-
       const subcommand = interaction.options.getSubcommand();
       const targetUser = interaction.options.getUser('user');
       const amount = interaction.options.getInteger('amount');

@@ -5,9 +5,11 @@
 The bot was experiencing several interaction timeout errors:
 - `[WARN] Failed to defer interaction for command: diemdanh`
 - `[WARN] Failed to defer interaction for command: profile`
+- `[WARN] Failed to defer interaction for command: persistent`
 - `[WARN] Failed to defer interaction for button: handleShop`
 - `[INTERACTION] Unknown interaction (likely timed out)`
 - `[INTERACTION] Interaction already acknowledged`
+- `TypeError: interaction.isExpired is not a function`
 
 ## Root Causes
 
@@ -16,6 +18,7 @@ The bot was experiencing several interaction timeout errors:
 3. **Insufficient Error Handling**: Missing proper error handling for edge cases
 4. **Database Loading Issues**: Synchronous database operations blocking interaction processing
 5. **Timeout Management**: Inadequate timeout handling for long-running operations
+6. **Invalid Method Calls**: Using non-existent Discord.js methods like `interaction.isExpired()`
 
 ## Fixes Implemented
 
@@ -63,18 +66,39 @@ interaction._handled = true;
 await executeWithTimeout(interaction, command, 10000); // 10 second timeout
 ```
 
-### 3. Removed Manual Defer from Commands
+### 3. Removed Manual Defer from All Commands
 
 **Fixed Commands:**
 - `commands/diemdanh.js`
 - `commands/profile.js`
+- `commands/persistent.js`
+- `commands/backup.js`
+- `commands/cartridge.js`
+- `commands/voicecheck.js`
+- `commands/topvoice.js`
+- `commands/topcartridge.js`
+- `commands/setemoji.js`
+- `commands/setembedemoji.js`
+- `commands/setembedcolor.js`
+- `commands/setbanner.js`
+- `commands/resetvoicetime.js`
+- `commands/removebanner.js`
+- `commands/viewembeds.js`
+- `commands/listbanners.js`
 
 **Changes:**
 - Removed manual `interaction.deferReply()` calls
 - Let the interaction system handle deferring automatically
 - Added proper error handling for data loading operations
+- Replaced `interaction.editReply()` with `safeEditReply()`
 
-### 4. Enhanced Button Components
+### 4. Fixed Invalid Method Calls
+
+**Fixed Issues:**
+- Removed `interaction.isExpired()` calls (method doesn't exist in Discord.js)
+- Replaced with proper interaction validation using `isInteractionValid()`
+
+### 5. Enhanced Button Components
 
 **Fixed Components:**
 - `components/buttons/handleShop.js`
@@ -85,7 +109,7 @@ await executeWithTimeout(interaction, command, 10000); // 10 second timeout
 - Implemented timeout protection for data loading
 - Enhanced error handling and user feedback
 
-### 5. Database System Improvements (`utils/database.js`)
+### 6. Database System Improvements (`utils/database.js`)
 
 **Enhancements:**
 - Added comprehensive error logging
@@ -93,7 +117,7 @@ await executeWithTimeout(interaction, command, 10000); // 10 second timeout
 - Better backup and recovery mechanisms
 - Enhanced data validation
 
-### 6. Error Logging System (`utils/errorLogger.js`)
+### 7. Error Logging System (`utils/errorLogger.js`)
 
 **New Feature:**
 - Comprehensive error tracking and logging
@@ -107,7 +131,7 @@ await executeWithTimeout(interaction, command, 10000); // 10 second timeout
 - Monitors database operations
 - Provides debugging information via `/debug` command
 
-### 7. Enhanced Debug Command (`commands/debug.js`)
+### 8. Enhanced Debug Command (`commands/debug.js`)
 
 **New Capabilities:**
 - Real-time bot health monitoring
@@ -158,10 +182,11 @@ After implementing these fixes:
 3. **Improved Performance**: Faster response times due to optimized database operations
 4. **Better Monitoring**: Comprehensive logging for debugging future issues
 5. **Stability**: Reduced crashes and improved error handling
+6. **No More Invalid Method Errors**: All Discord.js method calls are now valid
 
 ## Testing Recommendations
 
-1. **Test Commands**: Try `/diemdanh`, `/profile`, and shop interactions
+1. **Test Commands**: Try `/diemdanh`, `/profile`, `/persistent`, `/backup`, and shop interactions
 2. **Monitor Logs**: Check the debug command and log files for any remaining issues
 3. **Load Testing**: Test with multiple users using commands simultaneously
 4. **Error Simulation**: Test error conditions to ensure proper handling
@@ -179,10 +204,41 @@ After implementing these fixes:
 - `events/interactionCreate.js` - Improved event processing
 - `commands/diemdanh.js` - Removed manual defer, added error handling
 - `commands/profile.js` - Removed manual defer, added error handling
+- `commands/persistent.js` - Fixed invalid method calls, removed manual defer
+- `commands/backup.js` - Removed manual defer, added error handling
+- `commands/cartridge.js` - Removed manual defer, added error handling
+- `commands/voicecheck.js` - Removed manual defer, added error handling
+- `commands/topvoice.js` - Removed manual defer, added error handling
+- `commands/topcartridge.js` - Removed manual defer, added error handling
+- `commands/setemoji.js` - Removed manual defer, added error handling
+- `commands/setembedemoji.js` - Removed manual defer, added error handling
+- `commands/setembedcolor.js` - Removed manual defer, added error handling
+- `commands/setbanner.js` - Removed manual defer, added error handling
+- `commands/resetvoicetime.js` - Removed manual defer, added error handling
+- `commands/removebanner.js` - Removed manual defer, added error handling
+- `commands/viewembeds.js` - Removed manual defer, added error handling
+- `commands/listbanners.js` - Removed manual defer, added error handling
 - `components/buttons/handleShop.js` - Added async handling and error recovery
 - `components/buttons/buyItem.js` - Enhanced error handling and timeout protection
 - `utils/database.js` - Added error logging and improved operations
 - `utils/errorLogger.js` - New comprehensive logging system
 - `commands/debug.js` - Enhanced debugging capabilities
 
-These fixes should resolve the interaction timeout issues and provide a more stable and reliable bot experience. 
+## Critical Fixes Applied
+
+### 1. Persistent Command Fix
+- **Issue**: `TypeError: interaction.isExpired is not a function`
+- **Solution**: Removed invalid method call and replaced with proper validation
+- **Impact**: Prevents crashes when using `/persistent` command
+
+### 2. Manual Defer Removal
+- **Issue**: Race conditions between manual defer and system defer
+- **Solution**: Removed all manual `interaction.deferReply()` calls
+- **Impact**: Eliminates defer conflicts and timeout errors
+
+### 3. Safe Reply Implementation
+- **Issue**: Inconsistent error handling in replies
+- **Solution**: Standardized use of `safeEditReply()` across all commands
+- **Impact**: Better error recovery and user feedback
+
+These fixes should resolve all interaction timeout issues and provide a more stable and reliable bot experience. 

@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const fs = require('fs').promises;
 const path = require('path');
-const { safeReply } = require('../utils/interactionHelper');
+const { safeEditReply } = require('../utils/interactionHelper');
 const { userDataPath, shopDataPath, emojiPath } = require('../config');
 
 module.exports = {
@@ -50,11 +50,6 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      // Defer the interaction immediately to prevent timeout
-      if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ ephemeral: false });
-      }
-      
       const subcommand = interaction.options.getSubcommand();
       const backupDir = './manual_backups';
       
@@ -87,7 +82,7 @@ module.exports = {
     } catch (error) {
       console.error('Lỗi trong execute backup:', error);
       try {
-        await interaction.editReply({
+        await safeEditReply(interaction, {
           content: '❌ Có lỗi xảy ra khi thực hiện lệnh backup.'
         });
       } catch (replyError) {
@@ -176,7 +171,7 @@ module.exports = {
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      await safeEditReply(interaction, { embeds: [embed] });
 
     } catch (error) {
       console.error('Lỗi tạo backup:', error);
@@ -186,7 +181,7 @@ module.exports = {
         .setColor('#ff4444')
         .setTimestamp();
       
-      await interaction.editReply({ embeds: [errorEmbed] });
+      await safeEditReply(interaction, { embeds: [errorEmbed] });
     }
   },
 
@@ -203,7 +198,7 @@ module.exports = {
           .setThumbnail('https://cdn.discordapp.com/emojis/1234567890.png')
           .setTimestamp();
         
-        return interaction.editReply({ embeds: [emptyEmbed] });
+        return safeEditReply(interaction, { embeds: [emptyEmbed] });
       }
 
       const embed = new EmbedBuilder()
@@ -238,7 +233,7 @@ module.exports = {
         }
       }
 
-      await interaction.editReply({ embeds: [embed] });
+      await safeEditReply(interaction, { embeds: [embed] });
 
     } catch (error) {
       console.error('Lỗi liệt kê backup:', error);
@@ -248,7 +243,7 @@ module.exports = {
         .setColor('#ff4444')
         .setTimestamp();
       
-      await interaction.editReply({ embeds: [errorEmbed] });
+      await safeEditReply(interaction, { embeds: [errorEmbed] });
     }
   },
 
@@ -267,7 +262,7 @@ module.exports = {
           .setColor('#ff4444')
           .setTimestamp();
         
-        return interaction.editReply({ embeds: [notFoundEmbed] });
+        return safeEditReply(interaction, { embeds: [notFoundEmbed] });
       }
 
       // Xác nhận restore
@@ -286,7 +281,7 @@ module.exports = {
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [confirmEmbed] });
+      await safeEditReply(interaction, { embeds: [confirmEmbed] });
 
       // Restore các file
       const filesToRestore = [
@@ -345,7 +340,7 @@ module.exports = {
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [successEmbed] });
+      await safeEditReply(interaction, { embeds: [successEmbed] });
 
     } catch (error) {
       console.error('Lỗi restore backup:', error);
@@ -355,7 +350,7 @@ module.exports = {
         .setColor('#ff4444')
         .setTimestamp();
       
-      await interaction.editReply({ embeds: [errorEmbed] });
+      await safeEditReply(interaction, { embeds: [errorEmbed] });
     }
   },
 
@@ -374,7 +369,7 @@ module.exports = {
           .setColor('#ff4444')
           .setTimestamp();
         
-        return interaction.editReply({ embeds: [notFoundEmbed] });
+        return safeEditReply(interaction, { embeds: [notFoundEmbed] });
       }
 
       // Xóa thư mục backup
@@ -408,7 +403,7 @@ module.exports = {
         })
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed] });
+      await safeEditReply(interaction, { embeds: [embed] });
 
     } catch (error) {
       console.error('Lỗi xóa backup:', error);
@@ -418,7 +413,7 @@ module.exports = {
         .setColor('#ff4444')
         .setTimestamp();
       
-      await interaction.editReply({ embeds: [errorEmbed] });
+      await safeEditReply(interaction, { embeds: [errorEmbed] });
     }
   },
 
