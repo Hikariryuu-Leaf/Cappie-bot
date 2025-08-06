@@ -5,37 +5,37 @@ module.exports = {
   // User-specific banners
   userBanners: {},
   
-  // Emojis for different commands
+  // Emojis for different commands - Updated with server emoji IDs
   emojis: {
     // Diemdanh command
     diemdanh: {
-      success: '🎉',
-      reward: '🎁',
-      nitro: '💎',
-      total: '📊',
-      cooldown: '🕓'
+      success: '<:Cartridge:1401296893736259614>',
+      reward: '<:Cartridge:1401296893736259614>',
+      nitro: '<a:Nitro:1401018696339816593>',
+      total: '<:Cartridge:1401296893736259614>',
+      cooldown: '<a:maruloader:1401014872929734736>'
     },
     
     // Profile command
     profile: {
-      cartridge: '🎫',
-      voice: '🕒',
-      rank: '🥇',
-      voiceRank: '🎙️'
+      cartridge: '<:Cartridge:1401296893736259614>',
+      voice: '<:voice:1401013403958640683>',
+      rank: '<:crown~1:1401012799504908402>',
+      voiceRank: '<:voice:1401013403958640683>'
     },
     
     // Top commands
     top: {
-      cartridge: '💰',
-      voice: '🎙️',
-      rank: '#'
+      cartridge: '<:Cartridge:1401296893736259614>',
+      voice: '<:voice:1401013403958640683>',
+      rank: '<:green_star2:1402704561172516884>'
     },
     
     // Shop
     shop: {
-      title: '🎁',
-      price: '💸',
-      buy: '🛒'
+      title: '<a:Gift_Animation:1401017774028881921>',
+      price: '<:Cartridge:1401296893736259614>',
+      buy: '<:Cartridge:1401296893736259614>'
     }
   },
   

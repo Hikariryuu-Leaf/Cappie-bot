@@ -449,6 +449,105 @@ class PersistentStorage {
       maxLocalBackups: PERSISTENT_CONFIG.maxLocalBackups
     };
   }
+
+  // Load backup từ local sang manual
+  async loadBackupToManual(backupId, manualName = null) {
+    try {
+      console.log(`[PERSISTENT] Loading backup ${backupId} to manual backup...`);
+      
+      // Kiểm tra backup có tồn tại không
+      const backupPath = path.join(PERSISTENT_CONFIG.localBackupDir, backupId);
+      if (!fs.existsSync(backupPath)) {
+        throw new Error(`Local backup '${backupId}' not found`);
+      }
+
+      const userDataPath = path.join(backupPath, 'users.json');
+      if (!fs.existsSync(userDataPath)) {
+        throw new Error(`users.json not found in backup '${backupId}'`);
+      }
+
+      // Đọc data từ backup
+      const backupUserData = JSON.parse(fs.readFileSync(userDataPath, 'utf8'));
+      const validatedData = this.validateAndCleanUserData(backupUserData);
+
+      // Tạo tên manual backup
+      let finalManualName = manualName;
+      if (!finalManualName) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        finalManualName = `manual_${backupId}_${timestamp}`;
+      }
+
+      // Tạo thư mục manual backup
+      const manualBackupPath = path.join(PERSISTENT_CONFIG.manualBackupDir, finalManualName);
+      if (fs.existsSync(manualBackupPath)) {
+        throw new Error(`Manual backup '${finalManualName}' already exists`);
+      }
+
+      fs.mkdirSync(manualBackupPath, { recursive: true });
+
+      // Copy data sang manual backup
+      const manualUserDataPath = path.join(manualBackupPath, 'users.json');
+      fs.writeFileSync(manualUserDataPath, JSON.stringify(validatedData, null, 2));
+
+      console.log(`[PERSISTENT] Loaded backup ${backupId} to manual backup ${finalManualName}`);
+      
+      return {
+        success: true,
+        userCount: Object.keys(validatedData).length,
+        manualName: finalManualName,
+        sourceBackupId: backupId
+      };
+
+    } catch (error) {
+      console.error('[PERSISTENT] Load backup to manual failed:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Xóa manual backup
+  async deleteManualBackup(backupName) {
+    try {
+      console.log(`[PERSISTENT] Deleting manual backup: ${backupName}`);
+      
+      const manualBackupPath = path.join(PERSISTENT_CONFIG.manualBackupDir, backupName);
+      if (!fs.existsSync(manualBackupPath)) {
+        throw new Error(`Manual backup '${backupName}' not found`);
+      }
+
+      // Đọc số lượng users trước khi xóa
+      let userCount = 0;
+      const userDataPath = path.join(manualBackupPath, 'users.json');
+      if (fs.existsSync(userDataPath)) {
+        try {
+          const userData = JSON.parse(fs.readFileSync(userDataPath, 'utf8'));
+          userCount = Object.keys(userData).length;
+        } catch (error) {
+          console.warn(`[PERSISTENT] Could not read user count from ${backupName}:`, error.message);
+        }
+      }
+
+      // Xóa thư mục backup
+      fs.rmSync(manualBackupPath, { recursive: true, force: true });
+
+      console.log(`[PERSISTENT] Deleted manual backup: ${backupName}`);
+      
+      return {
+        success: true,
+        userCount: userCount,
+        deletedBackupName: backupName
+      };
+
+    } catch (error) {
+      console.error('[PERSISTENT] Delete manual backup failed:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
 }
 
 module.exports = PersistentStorage; 

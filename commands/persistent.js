@@ -40,6 +40,34 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand
+        .setName('load-backup')
+        .setDescription('Load dữ liệu từ backup ID và tạo manual backup')
+        .addStringOption(option =>
+          option
+            .setName('backup_id')
+            .setDescription('ID của backup để load (ví dụ: backup_2025-08-06T15-50-56-663Z_219bcc94)')
+            .setRequired(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName('manual_name')
+            .setDescription('Tên cho manual backup mới (để trống để tự động đặt tên)')
+            .setRequired(false)
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('delete-manual')
+        .setDescription('Xóa manual backup')
+        .addStringOption(option =>
+          option
+            .setName('backup_name')
+            .setDescription('Tên manual backup để xóa')
+            .setRequired(true)
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
         .setName('status')
         .setDescription('Kiểm tra trạng thái hệ thống backup')
     ),
@@ -69,6 +97,12 @@ module.exports = {
             break;
           case 'manual-restore':
             await this.manualRestore(interaction, persistentStorage);
+            break;
+          case 'load-backup':
+            await this.loadBackup(interaction, persistentStorage);
+            break;
+          case 'delete-manual':
+            await this.deleteManualBackup(interaction, persistentStorage);
             break;
           case 'status':
             await this.checkStatus(interaction, persistentStorage);
@@ -258,6 +292,126 @@ module.exports = {
         const errorEmbed = new EmbedBuilder()
           .setTitle('❌ Lỗi Khôi Phục Manual Backup')
           .setDescription(`Có lỗi xảy ra khi khôi phục:\n\`${error.message}\``)
+          .setColor('#ff4444')
+          .setTimestamp();
+        
+        await safeEditReply(interaction, { embeds: [errorEmbed] });
+      } catch (replyError) {
+        console.error('Không thể gửi thông báo lỗi:', replyError);
+      }
+    }
+  },
+
+  async loadBackup(interaction, persistentStorage) {
+    try {
+      const backupId = interaction.options.getString('backup_id');
+      const manualName = interaction.options.getString('manual_name');
+      
+      const embed = new EmbedBuilder()
+        .setTitle('🔄 Đang load backup và tạo manual backup...')
+        .setDescription(`Đang load từ backup: \`${backupId}\``)
+        .setColor('#ffaa00')
+        .setTimestamp();
+
+      await safeEditReply(interaction, { embeds: [embed] });
+
+      // Load backup and create manual backup with timeout
+      const loadPromise = persistentStorage.loadBackupToManual(backupId, manualName);
+      const loadTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Load backup operation timed out after 15 seconds')), 15000);
+      });
+      
+      const loadResult = await Promise.race([loadPromise, loadTimeoutPromise]);
+      
+      if (!loadResult.success) {
+        const errorEmbed = new EmbedBuilder()
+          .setTitle('❌ Lỗi Load Backup')
+          .setDescription(`Không thể load backup: ${loadResult.error}`)
+          .setColor('#ff4444')
+          .setTimestamp();
+        
+        return await safeEditReply(interaction, { embeds: [errorEmbed] });
+      }
+
+      const successEmbed = new EmbedBuilder()
+        .setTitle('✅ Load Backup Thành Công')
+        .setDescription('Đã load backup và tạo manual backup thành công!')
+        .addFields(
+          { name: '📊 Số lượng User', value: `${loadResult.userCount} users`, inline: true },
+          { name: '📁 Manual Backup', value: `\`${loadResult.manualName}\``, inline: true },
+          { name: '🆔 Source Backup', value: `\`${backupId}\``, inline: true },
+          { name: '📝 Lưu ý', value: 'Dữ liệu đã được copy từ local backup sang manual backup', inline: false }
+        )
+        .setColor('#00ff88')
+        .setTimestamp();
+
+      await safeEditReply(interaction, { embeds: [successEmbed] });
+
+    } catch (error) {
+      console.error('Lỗi load backup:', error);
+      try {
+        const errorEmbed = new EmbedBuilder()
+          .setTitle('❌ Lỗi Load Backup')
+          .setDescription(`Có lỗi xảy ra khi load backup:\n\`${error.message}\``)
+          .setColor('#ff4444')
+          .setTimestamp();
+        
+        await safeEditReply(interaction, { embeds: [errorEmbed] });
+      } catch (replyError) {
+        console.error('Không thể gửi thông báo lỗi:', replyError);
+      }
+    }
+  },
+
+  async deleteManualBackup(interaction, persistentStorage) {
+    try {
+      const backupName = interaction.options.getString('backup_name');
+      
+      const embed = new EmbedBuilder()
+        .setTitle('🗑️ Đang xóa manual backup...')
+        .setDescription(`Đang xóa manual backup: \`${backupName}\``)
+        .setColor('#ffaa00')
+        .setTimestamp();
+
+      await safeEditReply(interaction, { embeds: [embed] });
+
+      // Delete manual backup with timeout
+      const deletePromise = persistentStorage.deleteManualBackup(backupName);
+      const deleteTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Delete operation timed out after 10 seconds')), 10000);
+      });
+      
+      const deleteResult = await Promise.race([deletePromise, deleteTimeoutPromise]);
+      
+      if (!deleteResult.success) {
+        const errorEmbed = new EmbedBuilder()
+          .setTitle('❌ Lỗi Xóa Manual Backup')
+          .setDescription(`Không thể xóa backup: ${deleteResult.error}`)
+          .setColor('#ff4444')
+          .setTimestamp();
+        
+        return await safeEditReply(interaction, { embeds: [errorEmbed] });
+      }
+
+      const successEmbed = new EmbedBuilder()
+        .setTitle('✅ Xóa Manual Backup Thành Công')
+        .setDescription('Đã xóa manual backup thành công!')
+        .addFields(
+          { name: '📁 Backup Name', value: `\`${backupName}\``, inline: true },
+          { name: '📊 Số lượng User', value: `${deleteResult.userCount} users`, inline: true },
+          { name: '📝 Lưu ý', value: 'Backup đã được xóa vĩnh viễn', inline: false }
+        )
+        .setColor('#00ff88')
+        .setTimestamp();
+
+      await safeEditReply(interaction, { embeds: [successEmbed] });
+
+    } catch (error) {
+      console.error('Lỗi xóa manual backup:', error);
+      try {
+        const errorEmbed = new EmbedBuilder()
+          .setTitle('❌ Lỗi Xóa Manual Backup')
+          .setDescription(`Có lỗi xảy ra khi xóa backup:\n\`${error.message}\``)
           .setColor('#ff4444')
           .setTimestamp();
         

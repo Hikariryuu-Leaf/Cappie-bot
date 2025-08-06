@@ -62,7 +62,23 @@ Hệ thống Persistent Storage mới được tối ưu hóa để:
 - Yêu cầu chỉ định tên backup chính xác
 - Tự động tạo backup hiện tại trước khi restore
 
-### 5. Kiểm Tra Trạng Thái Hệ Thống
+### 5. Load Backup Từ Local Sang Manual
+```
+/persistent load-backup <backup_id> [manual_name]
+```
+- Load dữ liệu từ local backup ID sang manual backup
+- Tự động tạo tên manual backup nếu không chỉ định
+- Ví dụ: `/persistent load-backup backup_2025-08-06T15-50-56-663Z_219bcc94 important_backup`
+
+### 6. Xóa Manual Backup
+```
+/persistent delete-manual <backup_name>
+```
+- Xóa manual backup vĩnh viễn
+- Hiển thị số lượng users đã bị xóa
+- Ví dụ: `/persistent delete-manual test_backup`
+
+### 7. Kiểm Tra Trạng Thái Hệ Thống
 ```
 /persistent status
 ```
