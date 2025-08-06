@@ -60,7 +60,12 @@ module.exports = {
       
       // Tạo thư mục backup nếu chưa tồn tại
       try {
-        await fs.mkdir(backupDir, { recursive: true });
+        const mkdirPromise = fs.mkdir(backupDir, { recursive: true });
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Mkdir operation timed out')), 5000);
+        });
+        
+        await Promise.race([mkdirPromise, timeoutPromise]);
       } catch (error) {
         console.error('Lỗi tạo thư mục backup:', error);
       }

@@ -13,13 +13,23 @@ module.exports = {
 
   async execute(interaction) {
     try {
+      // Defer the interaction immediately to prevent timeout
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ ephemeral: false });
+      }
+
       const userId = interaction.user.id;
       
-      // Load data efficiently
-      const [users, emojiData] = await Promise.all([
+      // Load data efficiently with timeout
+      const loadPromise = Promise.all([
         loadJSON(userDataPath),
         loadJSON(emojiPath)
       ]);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Load operation timed out')), 5000);
+      });
+      
+      const [users, emojiData] = await Promise.race([loadPromise, timeoutPromise]);
       
       const emoji = emojiData.emoji || config.defaultEmoji;
 
@@ -66,16 +76,19 @@ module.exports = {
           .setStyle(ButtonStyle.Success)
       );
 
-      await safeEditReply(interaction, {
+      await interaction.editReply({
         embeds: [embed],
         components: [row]
       });
     } catch (error) {
       console.error('[ERROR] Profile command error:', error);
-      await safeEditReply(interaction, {
-        content: '❌ Có lỗi xảy ra khi tải hồ sơ. Vui lòng thử lại.',
-        flags: 64
-      });
+      try {
+        await interaction.editReply({
+          content: '❌ Có lỗi xảy ra khi tải hồ sơ. Vui lòng thử lại.'
+        });
+      } catch (replyError) {
+        console.error('Không thể gửi thông báo lỗi:', replyError);
+      }
     }
   }
 };

@@ -19,11 +19,21 @@ module.exports = {
 
   async execute(interaction) {
     try {
+      // Defer the interaction immediately to prevent timeout
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ ephemeral: false });
+      }
+
       const targetUser = interaction.options.getUser('user') || interaction.user;
       const userId = targetUser.id;
       
-      // Load user data
-      const users = await loadJSON(userDataPath);
+      // Load user data with timeout
+      const loadPromise = loadJSON(userDataPath);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Load operation timed out')), 5000);
+      });
+      
+      const users = await Promise.race([loadPromise, timeoutPromise]);
       
       // Tạo user nếu chưa có
       if (!users[userId]) {
@@ -98,14 +108,17 @@ module.exports = {
         });
       }
 
-      await safeEditReply(interaction, { embeds: [embed] });
+      await interaction.editReply({ embeds: [embed] });
 
     } catch (error) {
       console.error('[ERROR] Voicecheck command error:', error);
-      await safeEditReply(interaction, {
-        content: '❌ Có lỗi xảy ra khi kiểm tra voice tracking. Vui lòng thử lại.',
-        flags: 64
-      });
+      try {
+        await interaction.editReply({
+          content: '❌ Có lỗi xảy ra khi kiểm tra voice tracking. Vui lòng thử lại.'
+        });
+      } catch (replyError) {
+        console.error('Không thể gửi thông báo lỗi:', replyError);
+      }
     }
   }
 }; 

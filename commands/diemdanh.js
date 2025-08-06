@@ -13,6 +13,11 @@ module.exports = {
 
   async execute(interaction) {
     try {
+      // Defer the interaction immediately to prevent timeout
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ ephemeral: false });
+      }
+
       const userId = interaction.user.id;
       
       // Load data efficiently
@@ -42,7 +47,7 @@ module.exports = {
         const hours = Math.floor(remaining / 3600000);
         const minutes = Math.floor((remaining % 3600000) / 60000);
 
-        return safeEditReply(interaction, {
+        return interaction.editReply({
           content: `${embedConfig.emojis.diemdanh.cooldown} Bạn đã điểm danh rồi. Hãy quay lại sau **${hours}h ${minutes}m**.`
         });
       }
@@ -55,8 +60,13 @@ module.exports = {
       users[userId].cartridge += reward;
       users[userId].lastClaim = now;
       
-      // Save data efficiently
-      await saveJSON(userDataPath, users);
+      // Save data efficiently with timeout
+      const savePromise = saveJSON(userDataPath, users);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Save operation timed out')), 5000);
+      });
+      
+      await Promise.race([savePromise, timeoutPromise]);
 
       const embed = new EmbedBuilder()
         .setColor(embedConfig.colors.success)
@@ -72,13 +82,16 @@ module.exports = {
         )
         .setTimestamp();
 
-      return safeEditReply(interaction, { embeds: [embed] });
+      return interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error('[ERROR] Diemdanh command error:', error);
-      await safeEditReply(interaction, {
-        content: '❌ Có lỗi xảy ra khi điểm danh. Vui lòng thử lại.',
-        flags: 64
-      });
+      try {
+        await interaction.editReply({
+          content: '❌ Có lỗi xảy ra khi điểm danh. Vui lòng thử lại.'
+        });
+      } catch (replyError) {
+        console.error('Không thể gửi thông báo lỗi:', replyError);
+      }
     }
   }
 };

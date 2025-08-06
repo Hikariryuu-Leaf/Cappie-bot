@@ -11,18 +11,24 @@ module.exports = {
     .setDescription('Hiển thị top 10 người dùng có nhiều Cartridge nhất'),
 
   async execute(interaction) {
-    const users = loadJSON(userDataPath);
+    try {
+      // Defer the interaction immediately to prevent timeout
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ ephemeral: false });
+      }
 
-    const sorted = Object.entries(users)
-      .filter(([_, data]) => (data.cartridge || 0) > 0)
-      .sort((a, b) => (b[1].cartridge || 0) - (a[1].cartridge || 0))
-      .slice(0, 10);
+      const users = loadJSON(userDataPath);
 
-    if (sorted.length === 0) {
-      return safeEditReply(interaction, {
-        content: '❌ Không có người dùng nào có Cartridge.'
-      });
-    }
+      const sorted = Object.entries(users)
+        .filter(([_, data]) => (data.cartridge || 0) > 0)
+        .sort((a, b) => (b[1].cartridge || 0) - (a[1].cartridge || 0))
+        .slice(0, 10);
+
+      if (sorted.length === 0) {
+        return interaction.editReply({
+          content: '❌ Không có người dùng nào có Cartridge.'
+        });
+      }
 
     const emoji = getEmoji();
 
@@ -33,29 +39,45 @@ module.exports = {
       .setImage(embedConfig.getBanner(interaction.user.id))
       .setTimestamp();
 
-    let rank = 1;
-    for (const [userId, data] of sorted) {
-      try {
-        const user = await interaction.client.users.fetch(userId);
-        const username = user.username;
-        embed.addFields({
-          name: `${embedConfig.emojis.top.rank}${rank} - @${username}`,
-          value: `${emoji} ${data.cartridge || 0} Cartridge`,
-          inline: false
-        });
-      } catch (error) {
-        // If user not found, use userId as fallback
-        embed.addFields({
-          name: `${embedConfig.emojis.top.rank}${rank} - @unknown_user`,
-          value: `${emoji} ${data.cartridge || 0} Cartridge`,
-          inline: false
-        });
+      let rank = 1;
+      for (const [userId, data] of sorted) {
+        try {
+          // Add timeout for user fetch
+          const userPromise = interaction.client.users.fetch(userId);
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('User fetch timeout')), 3000);
+          });
+          
+          const user = await Promise.race([userPromise, timeoutPromise]);
+          const username = user.username;
+          embed.addFields({
+            name: `${embedConfig.emojis.top.rank}${rank} - @${username}`,
+            value: `${emoji} ${data.cartridge || 0} Cartridge`,
+            inline: false
+          });
+        } catch (error) {
+          // If user not found, use userId as fallback
+          embed.addFields({
+            name: `${embedConfig.emojis.top.rank}${rank} - @unknown_user`,
+            value: `${emoji} ${data.cartridge || 0} Cartridge`,
+            inline: false
+          });
+        }
+        rank++;
       }
-      rank++;
-    }
 
-    await safeEditReply(interaction, { 
-      embeds: [embed]
-    });
+      await interaction.editReply({ 
+        embeds: [embed]
+      });
+    } catch (error) {
+      console.error('Lỗi trong execute topcartridge:', error);
+      try {
+        await interaction.editReply({
+          content: '❌ Có lỗi xảy ra khi thực hiện lệnh topcartridge.'
+        });
+      } catch (replyError) {
+        console.error('Không thể gửi thông báo lỗi:', replyError);
+      }
+    }
   }
 };

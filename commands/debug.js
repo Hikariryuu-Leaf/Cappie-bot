@@ -9,6 +9,11 @@ module.exports = {
 
   async execute(interaction) {
     try {
+      // Defer the interaction immediately to prevent timeout
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ ephemeral: false });
+      }
+
       const embed = new EmbedBuilder()
         .setTitle('🔍 Debug Bot Configuration')
         .setColor('#ffaa00')
@@ -84,14 +89,17 @@ module.exports = {
         inline: false
       });
 
-      await safeEditReply(interaction, { embeds: [embed] });
+      await interaction.editReply({ embeds: [embed] });
 
     } catch (error) {
       console.error('[ERROR] Debug command error:', error);
-      await safeEditReply(interaction, {
-        content: '❌ Có lỗi xảy ra khi debug. Vui lòng thử lại.',
-        flags: 64
-      });
+      try {
+        await interaction.editReply({
+          content: '❌ Có lỗi xảy ra khi debug. Vui lòng thử lại.'
+        });
+      } catch (replyError) {
+        console.error('Không thể gửi thông báo lỗi:', replyError);
+      }
     }
   }
 }; 

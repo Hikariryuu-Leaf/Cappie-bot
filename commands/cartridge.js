@@ -80,6 +80,11 @@ module.exports = {
 
   async execute(interaction) {
     try {
+      // Defer the interaction immediately to prevent timeout
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ ephemeral: false });
+      }
+
       const subcommand = interaction.options.getSubcommand();
       const targetUser = interaction.options.getUser('user');
       const amount = interaction.options.getInteger('amount');
@@ -99,20 +104,29 @@ module.exports = {
 
       const oldCartridge = users[userId].cartridge || 0;
 
-      switch (subcommand) {
-        case 'add':
-          await this.addCartridge(interaction, users, userId, targetUser, amount, oldCartridge);
-          break;
-        case 'remove':
-          await this.removeCartridge(interaction, users, userId, targetUser, amount, oldCartridge);
-          break;
-        case 'set':
-          await this.setCartridge(interaction, users, userId, targetUser, amount, oldCartridge);
-          break;
-        case 'check':
-          await this.checkCartridge(interaction, users, userId, targetUser, oldCartridge);
-          break;
-      }
+      // Add timeout for database operations
+      const operationPromise = (async () => {
+        switch (subcommand) {
+          case 'add':
+            await this.addCartridge(interaction, users, userId, targetUser, amount, oldCartridge);
+            break;
+          case 'remove':
+            await this.removeCartridge(interaction, users, userId, targetUser, amount, oldCartridge);
+            break;
+          case 'set':
+            await this.setCartridge(interaction, users, userId, targetUser, amount, oldCartridge);
+            break;
+          case 'check':
+            await this.checkCartridge(interaction, users, userId, targetUser, oldCartridge);
+            break;
+        }
+      })();
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Cartridge operation timed out after 10 seconds')), 10000);
+      });
+
+      await Promise.race([operationPromise, timeoutPromise]);
     } catch (error) {
       console.error('Lỗi trong execute cartridge:', error);
       await safeEditReply(interaction, {
@@ -125,7 +139,14 @@ module.exports = {
   async addCartridge(interaction, users, userId, targetUser, amount, oldCartridge) {
     const newCartridge = oldCartridge + amount;
     users[userId].cartridge = newCartridge;
-    saveJSON(userDataPath, users);
+    
+    // Add timeout for save operation
+    const savePromise = saveJSON(userDataPath, users);
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Save operation timed out')), 5000);
+    });
+    
+    await Promise.race([savePromise, timeoutPromise]);
 
     const embed = new EmbedBuilder()
       .setTitle('✅ Tăng Cartridge Thành Công')
@@ -148,7 +169,14 @@ module.exports = {
   async removeCartridge(interaction, users, userId, targetUser, amount, oldCartridge) {
     const newCartridge = Math.max(0, oldCartridge - amount);
     users[userId].cartridge = newCartridge;
-    saveJSON(userDataPath, users);
+    
+    // Add timeout for save operation
+    const savePromise = saveJSON(userDataPath, users);
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Save operation timed out')), 5000);
+    });
+    
+    await Promise.race([savePromise, timeoutPromise]);
 
     const embed = new EmbedBuilder()
       .setTitle('✅ Giảm Cartridge Thành Công')
@@ -170,7 +198,14 @@ module.exports = {
 
   async setCartridge(interaction, users, userId, targetUser, amount, oldCartridge) {
     users[userId].cartridge = amount;
-    saveJSON(userDataPath, users);
+    
+    // Add timeout for save operation
+    const savePromise = saveJSON(userDataPath, users);
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Save operation timed out')), 5000);
+    });
+    
+    await Promise.race([savePromise, timeoutPromise]);
 
     const embed = new EmbedBuilder()
       .setTitle('✅ Đặt Cartridge Thành Công')
