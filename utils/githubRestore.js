@@ -20,9 +20,14 @@ class GitHubRestore {
         throw new Error('GITHUB_REPO hoặc GITHUB_TOKEN chưa được cấu hình');
       }
 
-      // Test GitHub API access
+      // Test GitHub API access with timeout
       const testCmd = `curl -H "Authorization: token ${this.token}" https://api.github.com/repos/${this.repo}`;
-      const { stdout } = await execAsync(testCmd);
+      const execPromise = execAsync(testCmd);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('GitHub access check timed out after 5 seconds')), 5000);
+      });
+      
+      const { stdout } = await Promise.race([execPromise, timeoutPromise]);
       const repoInfo = JSON.parse(stdout);
       
       console.log(`[GITHUB] ✅ Kết nối thành công với repository: ${repoInfo.full_name}`);
@@ -38,7 +43,14 @@ class GitHubRestore {
       console.log('[GITHUB] Đang lấy danh sách backup từ GitHub...');
       
       const cmd = `curl -H "Authorization: token ${this.token}" https://api.github.com/repos/${this.repo}/contents/data-backup`;
-      const { stdout } = await execAsync(cmd);
+      
+      // Add timeout for list operation
+      const execPromise = execAsync(cmd);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('GitHub list operation timed out after 8 seconds')), 8000);
+      });
+      
+      const { stdout } = await Promise.race([execPromise, timeoutPromise]);
       const contents = JSON.parse(stdout);
       
       const backups = contents
@@ -73,7 +85,7 @@ class GitHubRestore {
         fs.mkdirSync(tempDir, { recursive: true });
       }
 
-      // Download backup files
+      // Download backup files with timeout
       const files = ['users.json', 'shop.json', 'emojis.json', 'metadata.json'];
       let successCount = 0;
 
@@ -81,7 +93,14 @@ class GitHubRestore {
         try {
           const filePath = `data-backup/${backupId}/${file}`;
           const cmd = `curl -H "Authorization: token ${this.token}" https://api.github.com/repos/${this.repo}/contents/${filePath}`;
-          const { stdout } = await execAsync(cmd);
+          
+          // Add timeout for curl operations
+          const execPromise = execAsync(cmd);
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error(`Download timeout for ${file}`)), 5000);
+          });
+          
+          const { stdout } = await Promise.race([execPromise, timeoutPromise]);
           const fileInfo = JSON.parse(stdout);
           
           // Download file content
@@ -90,11 +109,19 @@ class GitHubRestore {
             continue;
           }
           const downloadCmd = `curl -H "Authorization: token ${this.token}" "${fileInfo.download_url}"`;
-          const { stdout: fileContent } = await execAsync(downloadCmd);
+          
+          // Add timeout for download
+          const downloadPromise = execAsync(downloadCmd);
+          const downloadTimeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error(`Download content timeout for ${file}`)), 5000);
+          });
+          
+          const { stdout: fileContent } = await Promise.race([downloadPromise, downloadTimeoutPromise]);
           
           // Save to temp directory
           const localPath = path.join(tempDir, file);
-          fs.writeFileSync(localPath, fileContent);
+          const fsPromises = require('fs').promises;
+          await fsPromises.writeFile(localPath, fileContent);
           successCount++;
           
           console.log(`[GITHUB] ✅ Đã tải: ${file}`);
@@ -115,8 +142,14 @@ class GitHubRestore {
     try {
       console.log(`[GITHUB] Bắt đầu khôi phục từ backup ${backupId}...`);
       
-      // Download backup
-      const downloadResult = await this.downloadBackup(backupId);
+      // Add timeout for GitHub operations
+      const downloadPromise = this.downloadBackup(backupId);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('GitHub download timed out after 15 seconds')), 15000);
+      });
+
+      // Download backup with timeout
+      const downloadResult = await Promise.race([downloadPromise, timeoutPromise]);
       if (!downloadResult.success) {
         throw new Error(`Không thể tải backup: ${downloadResult.error}`);
       }
@@ -136,7 +169,9 @@ class GitHubRestore {
         
         if (fs.existsSync(sourcePath)) {
           try {
-            fs.copyFileSync(sourcePath, destPath);
+            // Use async file operations
+            const fsPromises = require('fs').promises;
+            await fsPromises.copyFile(sourcePath, destPath);
             restoredCount++;
             console.log(`[GITHUB] ✅ Đã khôi phục: ${file}`);
           } catch (error) {
@@ -147,7 +182,8 @@ class GitHubRestore {
 
       // Clean up temp directory
       try {
-        fs.rmSync(downloadResult.tempDir, { recursive: true, force: true });
+        const fsPromises = require('fs').promises;
+        await fsPromises.rm(downloadResult.tempDir, { recursive: true, force: true });
         console.log('[GITHUB] Đã dọn dẹp thư mục tạm');
       } catch (cleanupError) {
         console.log('[GITHUB] Không thể dọn dẹp thư mục tạm:', cleanupError.message);
@@ -165,7 +201,13 @@ class GitHubRestore {
     try {
       console.log('[GITHUB] Đang tìm backup mới nhất...');
       
-      const backups = await this.listBackups();
+      // Add timeout for list operation
+      const listPromise = this.listBackups();
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('GitHub list operation timed out after 10 seconds')), 10000);
+      });
+
+      const backups = await Promise.race([listPromise, timeoutPromise]);
       if (backups.length === 0) {
         throw new Error('Không tìm thấy backup nào trên GitHub');
       }

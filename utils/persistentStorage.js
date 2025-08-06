@@ -149,7 +149,14 @@ class PersistentStorage {
       console.log(`[PERSISTENT] Testing GitHub API connection to: ${PERSISTENT_CONFIG.externalStorage.github.repo}`);
       
       const testCmd = `curl -H "Authorization: token ${PERSISTENT_CONFIG.externalStorage.github.token}" https://api.github.com/repos/${PERSISTENT_CONFIG.externalStorage.github.repo}`;
-      const { stdout } = await execAsync(testCmd);
+      
+      // Add timeout for GitHub validation
+      const execPromise = execAsync(testCmd);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('GitHub validation timed out after 8 seconds')), 8000);
+      });
+      
+      const { stdout } = await Promise.race([execPromise, timeoutPromise]);
       const repoInfo = JSON.parse(stdout);
 
       console.log(`[PERSISTENT] GitHub API response: ${JSON.stringify(repoInfo, null, 2)}`);
@@ -392,7 +399,7 @@ class PersistentStorage {
         throw new Error(`Backup ${backupId} not found locally`);
       }
       
-      // Restore files
+      // Restore files with timeout
       const filesToRestore = ['users.json', 'shop.json', 'emojis.json'];
       let successCount = 0;
       
@@ -403,7 +410,9 @@ class PersistentStorage {
         console.log(`[PERSISTENT] Checking file: ${sourcePath}`);
         if (fs.existsSync(sourcePath)) {
           try {
-            fs.copyFileSync(sourcePath, destPath);
+            // Use fs.promises for async operation with timeout
+            const fsPromises = require('fs').promises;
+            await fsPromises.copyFile(sourcePath, destPath);
             successCount++;
             console.log(`[PERSISTENT] Restored: ${file}`);
           } catch (error) {

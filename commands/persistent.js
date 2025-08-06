@@ -54,22 +54,31 @@ module.exports = {
         });
       }
 
-      switch (subcommand) {
-        case 'backup':
-          await this.createBackup(interaction, persistentStorage);
-          break;
-        case 'restore':
-          await this.restoreBackup(interaction, persistentStorage);
-          break;
-        case 'list':
-          await this.listBackups(interaction, persistentStorage);
-          break;
-        case 'sync':
-          await this.syncNow(interaction, persistentStorage);
-          break;
-        case 'status':
-          await this.checkStatus(interaction, persistentStorage);
-          break;
+      // Add timeout handling
+      const timeout = setTimeout(() => {
+        console.log('[PERSISTENT] Command timeout detected');
+      }, 25000); // 25 seconds timeout
+
+      try {
+        switch (subcommand) {
+          case 'backup':
+            await this.createBackup(interaction, persistentStorage);
+            break;
+          case 'restore':
+            await this.restoreBackup(interaction, persistentStorage);
+            break;
+          case 'list':
+            await this.listBackups(interaction, persistentStorage);
+            break;
+          case 'sync':
+            await this.syncNow(interaction, persistentStorage);
+            break;
+          case 'status':
+            await this.checkStatus(interaction, persistentStorage);
+            break;
+        }
+      } finally {
+        clearTimeout(timeout);
       }
     } catch (error) {
       console.error('Lỗi trong execute persistent:', error);
@@ -186,9 +195,15 @@ module.exports = {
 
       await interaction.editReply({ embeds: [embed] });
 
-      // Restore from external storage
+      // Add timeout for restore operation
+      const restorePromise = persistentStorage.restoreFromExternalStorage(backupId);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Restore operation timed out after 20 seconds')), 20000);
+      });
+
+      // Restore from external storage with timeout
       console.log(`[PERSISTENT COMMAND] Starting restore with backup ID: ${backupId || 'latest'}`);
-      const restoreResult = await persistentStorage.restoreFromExternalStorage(backupId);
+      const restoreResult = await Promise.race([restorePromise, timeoutPromise]);
       console.log(`[PERSISTENT COMMAND] Restore result:`, restoreResult);
       
       if (!restoreResult || !restoreResult.success) {
