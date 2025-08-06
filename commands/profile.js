@@ -13,23 +13,26 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      // Defer the interaction immediately to prevent timeout
-      if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ ephemeral: false });
-      }
-
       const userId = interaction.user.id;
       
-      // Load data efficiently with timeout
-      const loadPromise = Promise.all([
-        loadJSON(userDataPath),
-        loadJSON(emojiPath)
-      ]);
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Load operation timed out')), 5000);
-      });
-      
-      const [users, emojiData] = await Promise.race([loadPromise, timeoutPromise]);
+      // Load data efficiently with timeout protection
+      let users, emojiData;
+      try {
+        const loadPromise = Promise.all([
+          loadJSON(userDataPath),
+          loadJSON(emojiPath)
+        ]);
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Load operation timed out')), 5000);
+        });
+        
+        [users, emojiData] = await Promise.race([loadPromise, timeoutPromise]);
+      } catch (loadError) {
+        console.error('[ERROR] Failed to load data for profile:', loadError);
+        return await safeEditReply(interaction, {
+          content: '❌ Không thể tải dữ liệu. Vui lòng thử lại sau.'
+        });
+      }
       
       const emoji = emojiData.emoji || config.defaultEmoji;
 
@@ -76,14 +79,14 @@ module.exports = {
           .setStyle(ButtonStyle.Success)
       );
 
-      await interaction.editReply({
+      await safeEditReply(interaction, {
         embeds: [embed],
         components: [row]
       });
     } catch (error) {
       console.error('[ERROR] Profile command error:', error);
       try {
-        await interaction.editReply({
+        await safeEditReply(interaction, {
           content: '❌ Có lỗi xảy ra khi tải hồ sơ. Vui lòng thử lại.'
         });
       } catch (replyError) {

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const errorLogger = require('./errorLogger');
 
 // Database configuration
 const DB_CONFIG = {
@@ -82,9 +83,11 @@ function createBackup(filePath) {
     cleanupOldBackups(path.basename(filePath, '.json'));
     
     console.log(`[BACKUP] Created backup: ${backupName}`);
+    errorLogger.logDatabaseOperation('backup_created', filePath, true);
     return backupPath;
   } catch (error) {
     console.error(`[BACKUP] Failed to create backup for ${filePath}:`, error);
+    errorLogger.logDatabaseOperation('backup_failed', filePath, false, error);
     return null;
   }
 }
@@ -111,6 +114,7 @@ function cleanupOldBackups(filePrefix) {
     }
   } catch (error) {
     console.error('[BACKUP] Failed to cleanup old backups:', error);
+    errorLogger.logError(error, { context: 'cleanup_backups' });
   }
 }
 
@@ -162,9 +166,11 @@ function loadJSON(filePath) {
     
     // Cache the data
     memoryCache.set(filePath, data);
+    errorLogger.logDatabaseOperation('load_success', filePath, true);
     return data;
   } catch (err) {
     console.warn(`[DB] Failed to load ${filePath}, creating new file:`, err.message);
+    errorLogger.logDatabaseOperation('load_failed', filePath, false, err);
     return {};
   }
 }
@@ -193,9 +199,11 @@ function saveJSON(filePath, data) {
     atomicWrite(filePath, data);
     
     console.log(`[DB] Successfully saved ${filePath}`);
+    errorLogger.logDatabaseOperation('save_success', filePath, true);
     return true;
   } catch (error) {
     console.error(`[DB] Failed to save ${filePath}:`, error);
+    errorLogger.logDatabaseOperation('save_failed', filePath, false, error);
     
     // Try to recover from backup
     try {
@@ -211,10 +219,12 @@ function saveJSON(filePath, data) {
         const backupData = loadJSON(latestBackup);
         atomicWrite(filePath, backupData);
         console.log(`[DB] Successfully recovered from backup`);
+        errorLogger.logDatabaseOperation('recovery_success', filePath, true);
         return true;
       }
     } catch (recoveryError) {
       console.error(`[DB] Failed to recover from backup:`, recoveryError);
+      errorLogger.logDatabaseOperation('recovery_failed', filePath, false, recoveryError);
     }
     
     return false;
@@ -240,6 +250,7 @@ function startAutoSave() {
       });
     } catch (error) {
       console.error('[AUTO-SAVE] Error during auto-save:', error);
+      errorLogger.logError(error, { context: 'auto_save' });
     }
   }, DB_CONFIG.autoSaveInterval);
   
@@ -336,6 +347,11 @@ const voiceTime = {
       }
     } catch (error) {
       console.error(`[VOICE] Error adding time for user ${userId}:`, error);
+      errorLogger.logError(error, { 
+        context: 'voice_time_add',
+        userId: userId,
+        timeSpent: timeSpent
+      });
     }
   }
 };
@@ -358,6 +374,7 @@ function setupGracefulShutdown() {
   
   process.on('uncaughtException', (error) => {
     console.error('[DB] Uncaught exception, saving data...', error);
+    errorLogger.logError(error, { context: 'uncaught_exception' });
     forceSaveAll();
     stopAutoSave();
     process.exit(1);
@@ -365,6 +382,7 @@ function setupGracefulShutdown() {
   
   process.on('unhandledRejection', (reason, promise) => {
     console.error('[DB] Unhandled rejection, saving data...', reason);
+    errorLogger.logError(reason, { context: 'unhandled_rejection' });
     forceSaveAll();
     stopAutoSave();
     process.exit(1);

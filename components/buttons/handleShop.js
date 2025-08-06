@@ -10,8 +10,20 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      const shop = loadJSON(shopDataPath);
-      const emojiData = loadJSON(emojiPath);
+      // Load data with proper error handling
+      let shop, emojiData;
+      try {
+        [shop, emojiData] = await Promise.all([
+          loadJSON(shopDataPath),
+          loadJSON(emojiPath)
+        ]);
+      } catch (loadError) {
+        console.error('[ERROR] Failed to load shop data:', loadError);
+        return await safeEditReply(interaction, {
+          content: '❌ Không thể tải dữ liệu shop. Vui lòng thử lại sau.'
+        });
+      }
+
       const emoji = emojiData.emoji || config.defaultEmoji;
 
       const embed = new EmbedBuilder()
@@ -55,9 +67,13 @@ module.exports = {
       });
     } catch (err) {
       console.error('❌ Lỗi khi mở shop:', err);
-      await safeEditReply(interaction, {
-        content: 'Đã xảy ra lỗi khi mở shop. Vui lòng thử lại sau!'
-      });
+      try {
+        await safeEditReply(interaction, {
+          content: 'Đã xảy ra lỗi khi mở shop. Vui lòng thử lại sau!'
+        });
+      } catch (replyError) {
+        console.error('❌ Không thể gửi error message:', replyError);
+      }
     }
   }
 };

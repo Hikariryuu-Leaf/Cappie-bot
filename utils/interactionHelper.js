@@ -2,8 +2,8 @@
 async function safeReply(interaction, options) {
   try {
     // Check if interaction is still valid
-    if (!interaction || interaction.acknowledged) {
-      console.warn('[INTERACTION] Interaction already acknowledged or invalid');
+    if (!interaction || interaction.acknowledged || interaction.replied) {
+      console.warn('[INTERACTION] Interaction already acknowledged, replied, or invalid');
       return null;
     }
 
@@ -36,23 +36,20 @@ async function safeReply(interaction, options) {
 async function safeDefer(interaction, options = { flags: 64 }) {
   try {
     // Check if interaction is still valid
-    if (!interaction || interaction.acknowledged) {
-      console.warn('[INTERACTION] Interaction already acknowledged or invalid');
+    if (!interaction || interaction.acknowledged || interaction.replied || interaction.deferred) {
+      console.warn('[INTERACTION] Interaction already acknowledged, replied, deferred, or invalid');
       return false;
     }
 
     // Check if interaction is too old (more than 3 seconds)
     const interactionAge = Date.now() - interaction.createdTimestamp;
     if (interactionAge > 3000) {
-      console.warn(`[INTERACTION] Interaction too old (${interactionAge}ms) for command: ${interaction.commandName}`);
+      console.warn(`[INTERACTION] Interaction too old (${interactionAge}ms) for command: ${interaction.commandName || interaction.customId}`);
       return false;
     }
 
-    if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferReply(options);
-      return true;
-    }
-    return false;
+    await interaction.deferReply(options);
+    return true;
   } catch (error) {
     // Handle specific error codes
     if (error.code === 10062) {
@@ -113,7 +110,7 @@ function isInteractionValid(interaction) {
   // Check if interaction is too old (more than 15 seconds)
   const interactionAge = Date.now() - interaction.createdTimestamp;
   if (interactionAge > 15000) {
-    console.warn(`[INTERACTION] Interaction too old (${interactionAge}ms) for command: ${interaction.commandName}`);
+    console.warn(`[INTERACTION] Interaction too old (${interactionAge}ms) for command: ${interaction.commandName || interaction.customId}`);
     return false;
   }
   
@@ -126,7 +123,7 @@ function isInteractionValid(interaction) {
 async function executeWithTimeout(interaction, command, timeout = 10000) {
   return new Promise(async (resolve, reject) => {
     const timeoutId = setTimeout(() => {
-      console.warn(`[TIMEOUT] Command ${interaction.commandName} took too long (>${timeout}ms)`);
+      console.warn(`[TIMEOUT] Command ${interaction.commandName || interaction.customId} took too long (>${timeout}ms)`);
       reject(new Error('Command execution timeout'));
     }, timeout);
 

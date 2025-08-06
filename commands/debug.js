@@ -1,101 +1,125 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { loadJSON } = require('../utils/database');
+const { userDataPath, emojiPath, shopDataPath } = require('../config');
+const errorLogger = require('../utils/errorLogger');
 const { safeEditReply } = require('../utils/interactionHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('debug')
-    .setDescription('Debug cấu hình bot và environment variables')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDescription('Debug bot status and check for issues'),
 
   async execute(interaction) {
     try {
-      // Defer the interaction immediately to prevent timeout
-      if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ ephemeral: false });
-      }
-
       const embed = new EmbedBuilder()
-        .setTitle('🔍 Debug Bot Configuration')
-        .setColor('#ffaa00')
+        .setTitle('🔧 Bot Debug Information')
+        .setColor(0x00ff00)
         .setTimestamp();
 
-      // Kiểm tra environment variables
-      const envVars = {
-        'Discord Bot Token': process.env.TOKEN ? '✅ SET' : '❌ NOT SET',
-        'Owner ID': process.env.OWNER_ID ? '✅ SET' : '❌ NOT SET',
-        'Log Channel ID': process.env.LOG_CHANNEL_ID ? '✅ SET' : '❌ NOT SET',
-        'Exclusive Role ID': process.env.EXCLUSIVE_ROLE_ID ? '✅ SET' : '❌ NOT SET',
-        'GitHub Repository': process.env.GITHUB_REPO ? '✅ SET' : '❌ NOT SET',
-        'GitHub Token': process.env.GITHUB_TOKEN ? '✅ SET' : '❌ NOT SET'
-      };
-
-      embed.addFields(
-        { name: '📋 Environment Variables', value: 'Kiểm tra cấu hình:', inline: false },
-        ...Object.entries(envVars).map(([key, value]) => ({
-          name: key,
-          value: value,
-          inline: true
-        }))
-      );
-
-      // Kiểm tra cấu hình GitHub
-      if (process.env.GITHUB_REPO && process.env.GITHUB_TOKEN) {
-        const repoInfo = process.env.GITHUB_REPO;
-        const tokenPreview = process.env.GITHUB_TOKEN.substring(0, 10) + '...';
-        
-        embed.addFields(
-          { name: '🌐 GitHub Configuration', value: 'Chi tiết cấu hình:', inline: false },
-          { name: 'Repository', value: `\`${repoInfo}\``, inline: true },
-          { name: 'Token Preview', value: `\`${tokenPreview}\``, inline: true }
-        );
-
-        // Kiểm tra format
-        const formatChecks = {
-          'Repo Format': repoInfo.includes('/') ? '✅ Correct' : '❌ Wrong format',
-          'Token Format': process.env.GITHUB_TOKEN.startsWith('ghp_') ? '✅ Correct' : '❌ Wrong format'
-        };
-
-        embed.addFields(
-          { name: '🔧 Format Validation', value: 'Kiểm tra format:', inline: false },
-          ...Object.entries(formatChecks).map(([key, value]) => ({
-            name: key,
-            value: value,
-            inline: true
-          }))
-        );
+      // Check data files
+      const dataChecks = [];
+      try {
+        const users = loadJSON(userDataPath);
+        dataChecks.push(`✅ Users data: ${Object.keys(users).length} users`);
+      } catch (error) {
+        dataChecks.push(`❌ Users data: ${error.message}`);
       }
 
-      // Kiểm tra bot status
-      const botStatus = {
-        'Bot Online': interaction.client.user ? '✅ Online' : '❌ Offline',
-        'Guilds Count': interaction.client.guilds.cache.size,
-        'Commands Loaded': interaction.client.commands.size,
-        'Events Loaded': interaction.client.events.size
-      };
+      try {
+        const emojis = loadJSON(emojiPath);
+        dataChecks.push(`✅ Emojis data: Loaded successfully`);
+      } catch (error) {
+        dataChecks.push(`❌ Emojis data: ${error.message}`);
+      }
+
+      try {
+        const shop = loadJSON(shopDataPath);
+        dataChecks.push(`✅ Shop data: ${Object.keys(shop).length} items`);
+      } catch (error) {
+        dataChecks.push(`❌ Shop data: ${error.message}`);
+      }
+
+      // Get recent errors
+      const recentErrors = errorLogger.getRecentErrors(5);
+      const recentInteractions = errorLogger.getRecentInteractions(5);
+
+      // Check memory usage
+      const memUsage = process.memoryUsage();
+      const memInfo = [
+        `Heap Used: ${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
+        `Heap Total: ${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
+        `RSS: ${Math.round(memUsage.rss / 1024 / 1024)}MB`
+      ];
+
+      // Check uptime
+      const uptime = process.uptime();
+      const uptimeFormatted = `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${Math.floor(uptime % 60)}s`;
 
       embed.addFields(
-        { name: '🤖 Bot Status', value: 'Trạng thái bot:', inline: false },
-        ...Object.entries(botStatus).map(([key, value]) => ({
-          name: key,
-          value: value.toString(),
-          inline: true
-        }))
+        { name: '📊 Data Status', value: dataChecks.join('\n'), inline: false },
+        { name: '💾 Memory Usage', value: memInfo.join('\n'), inline: true },
+        { name: '⏱️ Uptime', value: uptimeFormatted, inline: true },
+        { name: '🔍 Recent Errors', value: recentErrors.length > 0 ? `${recentErrors.length} errors logged` : 'No recent errors', inline: true },
+        { name: '🎯 Recent Interactions', value: `${recentInteractions.length} interactions logged`, inline: true }
       );
 
-      // Thêm hướng dẫn
-      embed.addFields({
-        name: '💡 Hướng Dẫn',
-        value: 'Nếu có lỗi:\n1. Kiểm tra environment variables trên Render\n2. Chạy `node debug-github-connection.js`\n3. Restart bot sau khi sửa',
-        inline: false
-      });
+      // Add error details if any
+      if (recentErrors.length > 0) {
+        const errorDetails = recentErrors.slice(-3).map((entry, index) => {
+          try {
+            const data = JSON.parse(entry.replace(/^\[.*?\] ERROR: /, ''));
+            return `${index + 1}. ${data.error} (${data.context?.commandName || data.context?.customId || 'unknown'})`;
+          } catch {
+            return `${index + 1}. Parse error`;
+          }
+        }).join('\n');
+        
+        embed.addFields({ name: '❌ Latest Errors', value: errorDetails, inline: false });
+      }
 
-      await interaction.editReply({ embeds: [embed] });
+      // Add interaction details
+      if (recentInteractions.length > 0) {
+        const interactionDetails = recentInteractions.slice(-3).map((entry, index) => {
+          try {
+            const data = JSON.parse(entry.replace(/^\[.*?\] INTERACTION: /, ''));
+            return `${index + 1}. ${data.commandName || data.customId} - ${data.action} (${data.success ? '✅' : '❌'})`;
+          } catch {
+            return `${index + 1}. Parse error`;
+          }
+        }).join('\n');
+        
+        embed.addFields({ name: '🎯 Latest Interactions', value: interactionDetails, inline: false });
+      }
 
+      // Check for common issues
+      const issues = [];
+      
+      // Check if there are too many errors
+      if (recentErrors.length > 10) {
+        issues.push('⚠️ High error rate detected');
+      }
+
+      // Check memory usage
+      if (memUsage.heapUsed > 100 * 1024 * 1024) { // 100MB
+        issues.push('⚠️ High memory usage');
+      }
+
+      // Check uptime
+      if (uptime < 300) { // Less than 5 minutes
+        issues.push('⚠️ Bot recently restarted');
+      }
+
+      if (issues.length > 0) {
+        embed.addFields({ name: '⚠️ Issues Detected', value: issues.join('\n'), inline: false });
+        embed.setColor(0xff9900);
+      }
+
+      await safeEditReply(interaction, { embeds: [embed] });
     } catch (error) {
       console.error('[ERROR] Debug command error:', error);
       try {
-        await interaction.editReply({
-          content: '❌ Có lỗi xảy ra khi debug. Vui lòng thử lại.'
+        await safeEditReply(interaction, {
+          content: '❌ Có lỗi xảy ra khi chạy debug command.'
         });
       } catch (replyError) {
         console.error('Không thể gửi thông báo lỗi:', replyError);
