@@ -291,12 +291,14 @@ class PersistentStorage {
         const commitMessage = `Backup: ${backupId} - ${new Date().toISOString()}`;
         await execAsync(`git commit -m "${commitMessage}"`, { cwd: tempGitDir });
         
-        // Try to push to data-backup branch, create if doesn't exist
+        // Push to data-backup branch with force (always overwrite)
         try {
-          await execAsync('git push origin HEAD:data-backup', { cwd: tempGitDir });
+          console.log('[PERSISTENT] Pushing to data-backup branch...');
+          await execAsync('git push origin HEAD:data-backup --force', { cwd: tempGitDir });
         } catch (pushError) {
-          // If branch doesn't exist, create it
+          // If branch doesn't exist, create it first
           if (pushError.message.includes('does not exist')) {
+            console.log('[PERSISTENT] Creating data-backup branch...');
             await execAsync('git push origin HEAD:data-backup --set-upstream', { cwd: tempGitDir });
           } else {
             throw pushError;

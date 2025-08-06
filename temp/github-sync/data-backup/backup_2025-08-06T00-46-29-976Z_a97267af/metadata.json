@@ -1,0 +1,12 @@
+{
+  "id": "backup_2025-08-06T00-46-29-976Z_a97267af",
+  "createdAt": "2025-08-06T00:46:30.008Z",
+  "files": [
+    "✅ users.json",
+    "✅ shop.json",
+    "✅ emojis.json"
+  ],
+  "successCount": 3,
+  "totalFiles": 3,
+  "version": "1.0.0"
+}
