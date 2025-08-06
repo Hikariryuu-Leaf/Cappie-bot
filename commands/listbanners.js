@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const embedConfig = require('../config/embeds');
+const { safeEditReply } = require('../utils/interactionHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -8,11 +9,9 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      
-      
       const ownerId = process.env.OWNER_ID;
       if (interaction.user.id !== ownerId) {
-        return interaction.editReply({
+        return await safeEditReply(interaction, {
           content: '❌ Bạn không có quyền sử dụng lệnh này.'
         });
       }
@@ -20,7 +19,7 @@ module.exports = {
       const customBanners = Object.keys(embedConfig.userBanners);
       
       if (customBanners.length === 0) {
-        return interaction.editReply({
+        return await safeEditReply(interaction, {
           content: '📂 Không có banner tùy chỉnh nào.'
         });
       }
@@ -48,11 +47,11 @@ module.exports = {
         }
       }
 
-      await safeEditReply(interaction({ embeds: [embed] });
+      await safeEditReply(interaction, { embeds: [embed] });
     } catch (error) {
       console.error('Lỗi trong listbanners:', error);
       try {
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: '❌ Có lỗi xảy ra khi thực hiện lệnh.'
         });
       } catch (replyError) {

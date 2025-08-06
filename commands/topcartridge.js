@@ -63,13 +63,13 @@ module.exports = {
         rank++;
       }
 
-      await safeEditReply(interaction({ 
+      await safeEditReply(interaction, { 
         embeds: [embed]
       });
     } catch (error) {
       console.error('Lỗi trong execute topcartridge:', error);
       try {
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: '❌ Có lỗi xảy ra khi thực hiện lệnh topcartridge.'
         });
       } catch (replyError) {

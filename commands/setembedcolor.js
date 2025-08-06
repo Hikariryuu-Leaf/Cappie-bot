@@ -53,18 +53,18 @@ module.exports = {
       if (embedConfig.colors[section]) {
         embedConfig.colors[section] = color;
         
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: `✅ Đã thay đổi màu cho ${section} thành: ${color}`
         });
       } else {
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: '❌ Phần màu không tồn tại.'
         });
       }
     } catch (error) {
       console.error('Lỗi trong setembedcolor:', error);
       try {
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: '❌ Có lỗi xảy ra khi thực hiện lệnh.'
         });
       } catch (replyError) {

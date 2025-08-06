@@ -39,18 +39,18 @@ module.exports = {
         emojiData.emoji = newEmoji;
         saveJSON(emojiPath, emojiData);
         
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: `✅ Đã thay đổi emoji mặc định thành: ${newEmoji}`
         });
       } catch (error) {
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: '❌ Có lỗi xảy ra khi lưu emoji.'
         });
       }
     } catch (error) {
       console.error('Lỗi trong setemoji:', error);
       try {
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: '❌ Có lỗi xảy ra khi thực hiện lệnh.'
         });
       } catch (replyError) {

@@ -37,13 +37,13 @@ module.exports = {
       users[targetUser.id].totalVoice = 0;
       saveJSON(userDataPath, users);
 
-      await safeEditReply(interaction({
+      await safeEditReply(interaction, {
         content: `✅ Đã reset voice time cho ${targetUser.username}.`
       });
     } catch (error) {
       console.error('Lỗi trong resetvoicetime:', error);
       try {
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: '❌ Có lỗi xảy ra khi thực hiện lệnh.'
         });
       } catch (replyError) {

@@ -33,13 +33,13 @@ module.exports = {
       // Remove the banner
       delete embedConfig.userBanners[user.id];
       
-      await safeEditReply(interaction({
+      await safeEditReply(interaction, {
         content: `✅ Đã xóa banner của ${user.username}.`
       });
     } catch (error) {
       console.error('Lỗi trong removebanner:', error);
       try {
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: '❌ Có lỗi xảy ra khi thực hiện lệnh.'
         });
       } catch (replyError) {

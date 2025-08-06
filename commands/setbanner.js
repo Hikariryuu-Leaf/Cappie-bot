@@ -43,13 +43,13 @@ module.exports = {
       // Set the banner for the user
       embedConfig.userBanners[user.id] = bannerUrl;
       
-      await safeEditReply(interaction({
+      await safeEditReply(interaction, {
         content: `✅ Đã đặt banner cho ${user.username}: ${bannerUrl}`
       });
     } catch (error) {
       console.error('Lỗi trong setbanner:', error);
       try {
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: '❌ Có lỗi xảy ra khi thực hiện lệnh.'
         });
       } catch (replyError) {

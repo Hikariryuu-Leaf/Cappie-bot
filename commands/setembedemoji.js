@@ -52,18 +52,18 @@ module.exports = {
       if (embedConfig.emojis[category] && embedConfig.emojis[category][subcategory]) {
         embedConfig.emojis[category][subcategory] = emoji;
         
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: `✅ Đã thay đổi emoji cho ${section} thành: ${emoji}`
         });
       } else {
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: '❌ Phần emoji không tồn tại.'
         });
       }
     } catch (error) {
       console.error('Lỗi trong setembedemoji:', error);
       try {
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: '❌ Có lỗi xảy ra khi thực hiện lệnh.'
         });
       } catch (replyError) {

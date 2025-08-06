@@ -26,11 +26,11 @@ module.exports = {
         )
         .setTimestamp();
 
-      await safeEditReply(interaction({ embeds: [embed] });
+      await safeEditReply(interaction, { embeds: [embed] });
     } catch (error) {
       console.error('Lỗi trong viewembeds:', error);
       try {
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: '❌ Có lỗi xảy ra khi thực hiện lệnh.'
         });
       } catch (replyError) {

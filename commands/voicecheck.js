@@ -105,12 +105,12 @@ module.exports = {
         });
       }
 
-      await safeEditReply(interaction({ embeds: [embed] });
+      await safeEditReply(interaction, { embeds: [embed] });
 
     } catch (error) {
       console.error('[ERROR] Voicecheck command error:', error);
       try {
-        await safeEditReply(interaction({
+        await safeEditReply(interaction, {
           content: '❌ Có lỗi xảy ra khi kiểm tra voice tracking. Vui lòng thử lại.'
         });
       } catch (replyError) {
