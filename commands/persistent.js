@@ -40,9 +40,20 @@ module.exports = {
 
   async execute(interaction) {
     try {
+      // Check if interaction is still valid
+      if (interaction.isExpired()) {
+        console.log('[PERSISTENT] Interaction already expired');
+        return;
+      }
+
       // Defer the interaction immediately to prevent timeout
       if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ ephemeral: false });
+        try {
+          await interaction.deferReply({ ephemeral: false });
+        } catch (deferError) {
+          console.error('[PERSISTENT] Failed to defer interaction:', deferError);
+          return;
+        }
       }
       
       const subcommand = interaction.options.getSubcommand();
@@ -54,12 +65,8 @@ module.exports = {
         });
       }
 
-      // Add timeout handling
-      const timeout = setTimeout(() => {
-        console.log('[PERSISTENT] Command timeout detected');
-      }, 25000); // 25 seconds timeout
-
-      try {
+      // Add timeout handling for the entire command
+      const commandPromise = (async () => {
         switch (subcommand) {
           case 'backup':
             await this.createBackup(interaction, persistentStorage);
@@ -77,14 +84,25 @@ module.exports = {
             await this.checkStatus(interaction, persistentStorage);
             break;
         }
-      } finally {
-        clearTimeout(timeout);
-      }
+      })();
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Persistent command timed out after 20 seconds')), 20000);
+      });
+
+      await Promise.race([commandPromise, timeoutPromise]);
     } catch (error) {
       console.error('Lỗi trong execute persistent:', error);
+      
+      // Check if interaction is still valid
+      if (interaction.isExpired()) {
+        console.log('[PERSISTENT] Interaction expired, cannot send error message');
+        return;
+      }
+      
       try {
         await interaction.editReply({
-          content: '❌ Có lỗi xảy ra khi thực hiện lệnh persistent.'
+          content: `❌ Có lỗi xảy ra khi thực hiện lệnh persistent: ${error.message}`
         });
       } catch (replyError) {
         console.error('Không thể gửi thông báo lỗi:', replyError);
@@ -102,8 +120,13 @@ module.exports = {
 
       await interaction.editReply({ embeds: [embed] });
 
-      // Create comprehensive backup
-      const backupResult = await persistentStorage.createComprehensiveBackup();
+      // Create comprehensive backup with timeout
+      const backupPromise = persistentStorage.createComprehensiveBackup();
+      const backupTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Backup creation timed out after 15 seconds')), 15000);
+      });
+      
+      const backupResult = await Promise.race([backupPromise, backupTimeoutPromise]);
       
       if (!backupResult.success) {
         const errorEmbed = new EmbedBuilder()
@@ -115,8 +138,13 @@ module.exports = {
         return interaction.editReply({ embeds: [errorEmbed] });
       }
 
-      // Sync to external storage
-      const syncResult = await persistentStorage.syncToExternalStorage();
+      // Sync to external storage with timeout
+      const syncPromise = persistentStorage.syncToExternalStorage();
+      const syncTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Sync operation timed out after 10 seconds')), 10000);
+      });
+      
+      const syncResult = await Promise.race([syncPromise, syncTimeoutPromise]);
       
       const successEmbed = new EmbedBuilder()
         .setTitle('✅ Backup Thành Công')
@@ -169,6 +197,13 @@ module.exports = {
 
     } catch (error) {
       console.error('Lỗi tạo backup:', error);
+      
+      // Check if interaction is still valid
+      if (interaction.isExpired()) {
+        console.log('[PERSISTENT] Interaction expired, cannot send error message');
+        return;
+      }
+      
       const errorEmbed = new EmbedBuilder()
         .setTitle('❌ Lỗi Tạo Backup')
         .setDescription(`Có lỗi xảy ra khi tạo backup:\n\`${error.message}\``)
@@ -255,6 +290,13 @@ module.exports = {
 
     } catch (error) {
       console.error('Lỗi khôi phục backup:', error);
+      
+      // Check if interaction is still valid
+      if (interaction.isExpired()) {
+        console.log('[PERSISTENT] Interaction expired, cannot send error message');
+        return;
+      }
+      
       const errorEmbed = new EmbedBuilder()
         .setTitle('❌ Lỗi Khôi Phục')
         .setDescription(`Có lỗi xảy ra khi khôi phục backup:\n\`${error.message}\``)
@@ -271,7 +313,13 @@ module.exports = {
 
   async listBackups(interaction, persistentStorage) {
     try {
-      const backups = persistentStorage.getAvailableBackups();
+      // Get available backups with timeout
+      const backupsPromise = Promise.resolve(persistentStorage.getAvailableBackups());
+      const backupsTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Backup list timed out after 5 seconds')), 5000);
+      });
+      
+      const backups = await Promise.race([backupsPromise, backupsTimeoutPromise]);
 
       if (backups.length === 0) {
         const emptyEmbed = new EmbedBuilder()
@@ -312,6 +360,13 @@ module.exports = {
 
     } catch (error) {
       console.error('Lỗi liệt kê backup:', error);
+      
+      // Check if interaction is still valid
+      if (interaction.isExpired()) {
+        console.log('[PERSISTENT] Interaction expired, cannot send error message');
+        return;
+      }
+      
       const errorEmbed = new EmbedBuilder()
         .setTitle('❌ Lỗi Liệt Kê Backup')
         .setDescription(`Có lỗi xảy ra khi liệt kê backup:\n\`${error.message}\``)
@@ -336,8 +391,13 @@ module.exports = {
 
       await interaction.editReply({ embeds: [embed] });
 
-      // Sync to external storage
-      const syncResult = await persistentStorage.syncToExternalStorage();
+      // Sync to external storage with timeout
+      const syncPromise = persistentStorage.syncToExternalStorage();
+      const syncTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Sync operation timed out after 10 seconds')), 10000);
+      });
+      
+      const syncResult = await Promise.race([syncPromise, syncTimeoutPromise]);
       
       const resultEmbed = new EmbedBuilder()
         .setTitle(syncResult ? '✅ Sync Thành Công' : '❌ Sync Thất Bại')
@@ -365,6 +425,13 @@ module.exports = {
 
     } catch (error) {
       console.error('Lỗi sync:', error);
+      
+      // Check if interaction is still valid
+      if (interaction.isExpired()) {
+        console.log('[PERSISTENT] Interaction expired, cannot send error message');
+        return;
+      }
+      
       const errorEmbed = new EmbedBuilder()
         .setTitle('❌ Lỗi Sync')
         .setDescription(`Có lỗi xảy ra khi sync dữ liệu:\n\`${error.message}\``)
@@ -389,7 +456,13 @@ module.exports = {
 
       await interaction.editReply({ embeds: [embed] });
 
-      const status = await persistentStorage.getStorageStatus();
+      // Get storage status with timeout
+      const statusPromise = persistentStorage.getStorageStatus();
+      const statusTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Status check timed out after 8 seconds')), 8000);
+      });
+      
+      const status = await Promise.race([statusPromise, statusTimeoutPromise]);
 
       const statusEmbed = new EmbedBuilder()
         .setTitle('📊 Trạng Thái External Storage')
@@ -418,6 +491,13 @@ module.exports = {
 
     } catch (error) {
       console.error('Lỗi kiểm tra trạng thái:', error);
+      
+      // Check if interaction is still valid
+      if (interaction.isExpired()) {
+        console.log('[PERSISTENT] Interaction expired, cannot send error message');
+        return;
+      }
+      
       const errorEmbed = new EmbedBuilder()
         .setTitle('❌ Lỗi Trạng Thái')
         .setDescription(`Có lỗi xảy ra khi kiểm tra trạng thái:\n\`${error.message}\``)
