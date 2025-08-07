@@ -13,7 +13,8 @@ module.exports = {
       const userId = interaction.user.id;
       const user = await loadUser(userId);
       const totalVoice = user.totalVoice || 0;
-      const voiceTimeFormatted = formatTime(totalVoice);
+      const totalVoiceMinutes = Math.floor(totalVoice / 60000);
+      const voiceTimeFormatted = formatTime(totalVoiceMinutes);
       await safeEditReply(interaction, {
         content: `⏱️ Tổng thời gian voice của bạn: **${voiceTimeFormatted}**`
       });

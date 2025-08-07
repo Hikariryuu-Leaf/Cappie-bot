@@ -48,7 +48,8 @@ module.exports = {
       const cartRank = sortedCart.findIndex(u => u.userId === userId) + 1;
 
       const totalVoice = user.totalVoice || 0;
-      const voiceTimeFormatted = formatTime(totalVoice);
+      const totalVoiceMinutes = Math.floor(totalVoice / 60000);
+      const voiceTimeFormatted = formatTime(totalVoiceMinutes);
 
       const embed = new EmbedBuilder()
         .setColor(embedConfig.colors.profile)

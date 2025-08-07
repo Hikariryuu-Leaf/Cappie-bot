@@ -40,14 +40,14 @@ module.exports = {
           });
           const discordUser = await Promise.race([userPromise, timeoutPromise]);
           const username = discordUser.username;
-          const voiceTimeFormatted = formatTime(user.totalVoice || 0);
+          const voiceTimeFormatted = formatTime(Math.floor((user.totalVoice || 0) / 60000));
           embed.addFields({
             name: `${embedConfig.emojis.top.rank}${rank} - @${username}`,
             value: `${embedConfig.emojis.profile.voice} ${voiceTimeFormatted}`,
             inline: false
           });
         } catch (error) {
-          const voiceTimeFormatted = formatTime(user.totalVoice || 0);
+          const voiceTimeFormatted = formatTime(Math.floor((user.totalVoice || 0) / 60000));
           embed.addFields({
             name: `${embedConfig.emojis.top.rank}${rank} - @unknown_user`,
             value: `${embedConfig.emojis.profile.voice} ${voiceTimeFormatted}`,
