@@ -47,7 +47,10 @@ module.exports = {
       const voiceRank = sortedVoice.findIndex(u => u.userId === userId) + 1;
       const cartRank = sortedCart.findIndex(u => u.userId === userId) + 1;
 
-      const totalVoice = user.totalVoice || 0;
+      let totalVoice = user.totalVoice || 0;
+      if (user.joinTime && typeof user.joinTime === 'number' && user.joinTime > 0) {
+        totalVoice += Date.now() - user.joinTime;
+      }
       const totalVoiceMinutes = Math.floor(totalVoice / 60000);
       const voiceTimeFormatted = formatTime(totalVoiceMinutes);
 

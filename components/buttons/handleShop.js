@@ -10,13 +10,13 @@ module.exports = {
     ]);
     const emoji = (emojis && emojis.length > 0) ? emojis[0].emoji : '🎁';
     if (!shop || shop.length === 0) {
-      return interaction.reply({ content: '❌ Shop hiện đang trống.', ephemeral: true });
+      return interaction.followUp({ content: '❌ Shop hiện đang trống.', ephemeral: true });
     }
     let content = `**Shop hiện tại:**\n`;
     for (const item of shop) {
       content += `• ${item.name}: ${item.price} ${emoji}\n`;
     }
-    await interaction.reply({ content, ephemeral: true });
+    await interaction.followUp({ content, ephemeral: true });
   }
 };
 

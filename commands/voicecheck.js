@@ -12,7 +12,10 @@ module.exports = {
     try {
       const userId = interaction.user.id;
       const user = await loadUser(userId);
-      const totalVoice = user.totalVoice || 0;
+      let totalVoice = user.totalVoice || 0;
+      if (user.joinTime && typeof user.joinTime === 'number' && user.joinTime > 0) {
+        totalVoice += Date.now() - user.joinTime;
+      }
       const totalVoiceMinutes = Math.floor(totalVoice / 60000);
       const voiceTimeFormatted = formatTime(totalVoiceMinutes);
       await safeEditReply(interaction, {
