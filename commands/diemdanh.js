@@ -1,6 +1,8 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { loadUser, saveUser, loadEmojis } = require('../utils/database');
 const { safeEditReply } = require('../utils/interactionHelper');
+const embedConfig = require('../config/embeds');
+const { formatMilliseconds } = require('../utils/formatTime');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -18,9 +20,13 @@ module.exports = {
       const lastClaim = user.lastClaim || 0;
       const oneDay = 24 * 60 * 60 * 1000;
       if (now - lastClaim < oneDay) {
-        return await safeEditReply(interaction, {
-          content: `❌ Bạn đã điểm danh hôm nay rồi! Hãy quay lại sau.`
-        });
+        const timeLeft = oneDay - (now - lastClaim);
+        const embed = new EmbedBuilder()
+          .setTitle(`${embedConfig.emojis.diemdanh.cooldown} Cooldown điểm danh`)
+          .setColor(embedConfig.colors.warning)
+          .setDescription(`❌ Bạn đã điểm danh hôm nay rồi!\n\n⏳ Thời gian chờ còn lại: **${formatMilliseconds(timeLeft)}**`)
+          .setTimestamp();
+        return await safeEditReply(interaction, { embeds: [embed] });
       }
       user.lastClaim = now;
       user.cartridge = (user.cartridge || 0) + 10; // Thưởng 10 cartridge
