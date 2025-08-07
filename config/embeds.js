@@ -20,7 +20,7 @@ module.exports = {
     profile: {
       cartridge: '<:Cartridge:1401296893736259614>',
       voice: '<:voice:1401013403958640683>',
-      rank: '<:crown~1:1401012799504908402>',
+      rank: '<:white_crown:1402838823037177887>',
       voiceRank: '<:voice:1401013403958640683>'
     },
     

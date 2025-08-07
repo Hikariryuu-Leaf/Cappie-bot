@@ -1,4 +1,5 @@
-const fs = require('fs');
+const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
@@ -28,11 +29,13 @@ const BACKUP_CONFIG = {
 class BackupManager {
   constructor() {
     this.lastBackupTime = 0;
-    this.ensureDirectories();
+    this.ensureDirectories().catch(error => {
+      console.error('[BACKUP] Error ensuring directories:', error);
+    });
   }
 
   // Tạo thư mục cần thiết
-  ensureDirectories() {
+  async ensureDirectories() {
     const dirs = [
       BACKUP_CONFIG.dataDir,
       BACKUP_CONFIG.backupDir,
@@ -40,12 +43,14 @@ class BackupManager {
       BACKUP_CONFIG.manualBackupDir
     ];
     
-    dirs.forEach(dir => {
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+    for (const dir of dirs) {
+      try {
+        await fs.access(dir);
+      } catch (error) {
+        await fs.mkdir(dir, { recursive: true });
         console.log(`[BACKUP] Created directory: ${dir}`);
       }
-    });
+    }
   }
 
   // Tạo tên backup với timestamp
@@ -56,11 +61,10 @@ class BackupManager {
   }
 
   // Kiểm tra file có hợp lệ không
-  isValidFile(filePath) {
+  async isValidFile(filePath) {
     try {
-      if (!fs.existsSync(filePath)) return false;
-      
-      const content = fs.readFileSync(filePath, 'utf8');
+      await fs.access(filePath);
+      const content = await fs.readFile(filePath, 'utf8');
       const data = JSON.parse(content);
       
       // Kiểm tra cấu trúc dữ liệu
@@ -89,18 +93,18 @@ class BackupManager {
     const backupPath = path.join(BACKUP_CONFIG.backupDir, backupName);
     
     try {
-      fs.mkdirSync(backupPath, { recursive: true });
+      await fs.mkdir(backupPath, { recursive: true });
       
       let successCount = 0;
       const backupResults = [];
       
       for (const filePath of BACKUP_CONFIG.filesToBackup) {
-        if (this.isValidFile(filePath)) {
+        if (await this.isValidFile(filePath)) {
           try {
             const fileName = path.basename(filePath);
             const destPath = path.join(backupPath, fileName);
             
-            fs.copyFileSync(filePath, destPath);
+            await fs.copyFile(filePath, destPath);
             successCount++;
             backupResults.push(`✅ ${fileName}`);
           } catch (error) {
@@ -119,13 +123,13 @@ class BackupManager {
         totalFiles: BACKUP_CONFIG.filesToBackup.length
       };
       
-      fs.writeFileSync(
+      await fs.writeFile(
         path.join(backupPath, 'metadata.json'),
         JSON.stringify(metadata, null, 2)
       );
       
       this.lastBackupTime = now;
-      this.cleanupOldAutoBackups();
+      await this.cleanupOldAutoBackups();
       
       console.log(`[BACKUP] Auto backup created: ${backupName} (${successCount}/${BACKUP_CONFIG.filesToBackup.length} files)`);
       return true;
@@ -144,18 +148,18 @@ class BackupManager {
     console.log(`[BACKUP] Creating manual backup: ${backupName}`);
     
     try {
-      fs.mkdirSync(backupPath, { recursive: true });
+      await fs.mkdir(backupPath, { recursive: true });
       
       let successCount = 0;
       const backupResults = [];
       
       for (const filePath of BACKUP_CONFIG.filesToBackup) {
-        if (this.isValidFile(filePath)) {
+        if (await this.isValidFile(filePath)) {
           try {
             const fileName = path.basename(filePath);
             const destPath = path.join(backupPath, fileName);
             
-            fs.copyFileSync(filePath, destPath);
+            await fs.copyFile(filePath, destPath);
             successCount++;
             backupResults.push(`✅ ${fileName}`);
           } catch (error) {
@@ -175,12 +179,12 @@ class BackupManager {
         totalFiles: BACKUP_CONFIG.filesToBackup.length
       };
       
-      fs.writeFileSync(
+      await fs.writeFile(
         path.join(backupPath, 'metadata.json'),
         JSON.stringify(metadata, null, 2)
       );
       
-      this.cleanupOldManualBackups();
+      await this.cleanupOldManualBackups();
       
       console.log(`[BACKUP] Manual backup created: ${backupName} (${successCount}/${BACKUP_CONFIG.filesToBackup.length} files)`);
       return { success: true, name: backupName, successCount };
@@ -192,26 +196,32 @@ class BackupManager {
   }
 
   // Dọn dẹp backup tự động cũ
-  cleanupOldAutoBackups() {
+  async cleanupOldAutoBackups() {
     try {
-      const backupFiles = fs.readdirSync(BACKUP_CONFIG.backupDir)
-        .filter(item => {
-          const fullPath = path.join(BACKUP_CONFIG.backupDir, item);
-          return fs.statSync(fullPath).isDirectory() && item.startsWith('auto_backup_');
-        })
-        .map(item => ({
-          name: item,
-          path: path.join(BACKUP_CONFIG.backupDir, item),
-          time: fs.statSync(path.join(BACKUP_CONFIG.backupDir, item)).mtime.getTime()
-        }))
-        .sort((a, b) => b.time - a.time); // Sắp xếp theo thời gian mới nhất
+      const items = await fs.readdir(BACKUP_CONFIG.backupDir);
+      const backupFiles = [];
+      
+      for (const item of items) {
+        const fullPath = path.join(BACKUP_CONFIG.backupDir, item);
+        const stat = await fs.stat(fullPath);
+        
+        if (stat.isDirectory() && item.startsWith('auto_backup_')) {
+          backupFiles.push({
+            name: item,
+            path: fullPath,
+            time: stat.mtime.getTime()
+          });
+        }
+      }
+      
+      backupFiles.sort((a, b) => b.time - a.time); // Sắp xếp theo thời gian mới nhất
       
       // Xóa các backup cũ
       if (backupFiles.length > BACKUP_CONFIG.maxAutoBackups) {
         const filesToDelete = backupFiles.slice(BACKUP_CONFIG.maxAutoBackups);
         
         for (const file of filesToDelete) {
-          fs.rmSync(file.path, { recursive: true, force: true });
+          await fs.rm(file.path, { recursive: true, force: true });
           console.log(`[BACKUP] Deleted old auto backup: ${file.name}`);
         }
       }
@@ -221,26 +231,32 @@ class BackupManager {
   }
 
   // Dọn dẹp backup thủ công cũ
-  cleanupOldManualBackups() {
+  async cleanupOldManualBackups() {
     try {
-      const backupFiles = fs.readdirSync(BACKUP_CONFIG.manualBackupDir)
-        .filter(item => {
-          const fullPath = path.join(BACKUP_CONFIG.manualBackupDir, item);
-          return fs.statSync(fullPath).isDirectory() && item.startsWith('manual_backup_');
-        })
-        .map(item => ({
-          name: item,
-          path: path.join(BACKUP_CONFIG.manualBackupDir, item),
-          time: fs.statSync(path.join(BACKUP_CONFIG.manualBackupDir, item)).mtime.getTime()
-        }))
-        .sort((a, b) => b.time - a.time); // Sắp xếp theo thời gian mới nhất
+      const items = await fs.readdir(BACKUP_CONFIG.manualBackupDir);
+      const backupFiles = [];
+      
+      for (const item of items) {
+        const fullPath = path.join(BACKUP_CONFIG.manualBackupDir, item);
+        const stat = await fs.stat(fullPath);
+        
+        if (stat.isDirectory()) {
+          backupFiles.push({
+            name: item,
+            path: fullPath,
+            time: stat.mtime.getTime()
+          });
+        }
+      }
+      
+      backupFiles.sort((a, b) => b.time - a.time); // Sắp xếp theo thời gian mới nhất
       
       // Xóa các backup cũ
       if (backupFiles.length > BACKUP_CONFIG.maxManualBackups) {
         const filesToDelete = backupFiles.slice(BACKUP_CONFIG.maxManualBackups);
         
         for (const file of filesToDelete) {
-          fs.rmSync(file.path, { recursive: true, force: true });
+          await fs.rm(file.path, { recursive: true, force: true });
           console.log(`[BACKUP] Deleted old manual backup: ${file.name}`);
         }
       }
@@ -250,53 +266,57 @@ class BackupManager {
   }
 
   // Lấy danh sách backup
-  getBackupList() {
+  async getBackupList() {
     const autoBackups = [];
     const manualBackups = [];
     
     try {
       // Lấy backup tự động
-      if (fs.existsSync(BACKUP_CONFIG.backupDir)) {
-        const autoItems = fs.readdirSync(BACKUP_CONFIG.backupDir)
-          .filter(item => {
-            const fullPath = path.join(BACKUP_CONFIG.backupDir, item);
-            return fs.statSync(fullPath).isDirectory() && item.startsWith('auto_backup_');
-          })
-          .map(item => {
-            const fullPath = path.join(BACKUP_CONFIG.backupDir, item);
-            const stat = fs.statSync(fullPath);
-            return {
+      try {
+        await fs.access(BACKUP_CONFIG.backupDir);
+        const autoItems = await fs.readdir(BACKUP_CONFIG.backupDir);
+        
+        for (const item of autoItems) {
+          const fullPath = path.join(BACKUP_CONFIG.backupDir, item);
+          const stat = await fs.stat(fullPath);
+          
+          if (stat.isDirectory() && item.startsWith('auto_backup_')) {
+            autoBackups.push({
               name: item,
               path: fullPath,
               time: stat.mtime,
               type: 'auto'
-            };
-          })
-          .sort((a, b) => b.time - a.time);
+            });
+          }
+        }
         
-        autoBackups.push(...autoItems);
+        autoBackups.sort((a, b) => b.time - a.time);
+      } catch (error) {
+        // Thư mục không tồn tại
       }
       
       // Lấy backup thủ công
-      if (fs.existsSync(BACKUP_CONFIG.manualBackupDir)) {
-        const manualItems = fs.readdirSync(BACKUP_CONFIG.manualBackupDir)
-          .filter(item => {
-            const fullPath = path.join(BACKUP_CONFIG.manualBackupDir, item);
-            return fs.statSync(fullPath).isDirectory() && item.startsWith('manual_backup_');
-          })
-          .map(item => {
-            const fullPath = path.join(BACKUP_CONFIG.manualBackupDir, item);
-            const stat = fs.statSync(fullPath);
-            return {
+      try {
+        await fs.access(BACKUP_CONFIG.manualBackupDir);
+        const manualItems = await fs.readdir(BACKUP_CONFIG.manualBackupDir);
+        
+        for (const item of manualItems) {
+          const fullPath = path.join(BACKUP_CONFIG.manualBackupDir, item);
+          const stat = await fs.stat(fullPath);
+          
+          if (stat.isDirectory()) {
+            manualBackups.push({
               name: item,
               path: fullPath,
               time: stat.mtime,
               type: 'manual'
-            };
-          })
-          .sort((a, b) => b.time - a.time);
+            });
+          }
+        }
         
-        manualBackups.push(...manualItems);
+        manualBackups.sort((a, b) => b.time - a.time);
+      } catch (error) {
+        // Thư mục không tồn tại
       }
       
     } catch (error) {
@@ -314,7 +334,9 @@ class BackupManager {
     console.log(`[BACKUP] Restoring from ${backupType} backup: ${backupName}`);
     
     try {
-      if (!fs.existsSync(backupPath)) {
+      try {
+        await fs.access(backupPath);
+      } catch (error) {
         throw new Error(`Backup ${backupName} not found`);
       }
       
@@ -325,25 +347,30 @@ class BackupManager {
         const fileName = path.basename(filePath);
         const sourcePath = path.join(backupPath, fileName);
         
-        if (fs.existsSync(sourcePath)) {
+        try {
+          await fs.access(sourcePath);
+          
           try {
             // Tạo backup của file hiện tại trước khi ghi đè
-            if (fs.existsSync(filePath)) {
+            try {
+              await fs.access(filePath);
               const currentBackupName = `restore_backup_${Date.now()}.json`;
               const currentBackupPath = path.join(BACKUP_CONFIG.backupDir, currentBackupName);
-              fs.copyFileSync(filePath, currentBackupPath);
+              await fs.copyFile(filePath, currentBackupPath);
               console.log(`[BACKUP] Created backup of current file: ${currentBackupName}`);
+            } catch (error) {
+              // File hiện tại không tồn tại, không cần backup
             }
             
             // Khôi phục file
-            fs.copyFileSync(sourcePath, filePath);
+            await fs.copyFile(sourcePath, filePath);
             successCount++;
             restoreResults.push(`✅ ${fileName}`);
           } catch (error) {
             console.error(`[BACKUP] Error restoring ${fileName}:`, error.message);
             restoreResults.push(`❌ ${fileName}`);
           }
-        } else {
+        } catch (error) {
           restoreResults.push(`⚠️ ${fileName} (not found in backup)`);
         }
       }
@@ -362,11 +389,15 @@ class BackupManager {
     console.log('[BACKUP] Starting auto backup system...');
     
     // Tạo backup đầu tiên
-    this.createAutoBackup();
+    this.createAutoBackup().catch(error => {
+      console.error('[BACKUP] Error in initial auto backup:', error);
+    });
     
     // Thiết lập interval
     setInterval(() => {
-      this.createAutoBackup();
+      this.createAutoBackup().catch(error => {
+        console.error('[BACKUP] Error in scheduled auto backup:', error);
+      });
     }, BACKUP_CONFIG.autoBackupInterval);
   }
 

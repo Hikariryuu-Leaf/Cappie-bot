@@ -1,0 +1,12 @@
+{
+  "type": "manual",
+  "name": "test_backup_fix",
+  "createdAt": "2025-08-07T02:50:24.371Z",
+  "files": [
+    "✅ users.json",
+    "✅ shop.json",
+    "✅ emojis.json"
+  ],
+  "successCount": 3,
+  "totalFiles": 3
+}
