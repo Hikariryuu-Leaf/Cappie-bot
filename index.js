@@ -3,7 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js');
 const { loadCommands } = require('./utils/loader');
-const voiceTracker = require('./jobs/voiceTracker');
 const BackupManager = require('./utils/backupManager');
 const PersistentStorage = require('./utils/persistentStorage');
 
@@ -88,9 +87,7 @@ client.once('ready', async () => {
     persistentStorage.startAutoBackup();
     client.persistentStorage = persistentStorage; // Make it available globally
     
-    // Start voice tracking
-    console.log('[STARTUP] Starting voice tracking...');
-    voiceTracker.start(client);
+    // Đã loại bỏ voiceTracker.start vì không còn dùng nữa
     
     console.log('[STARTUP] Bot startup completed successfully!');
   } catch (error) {
