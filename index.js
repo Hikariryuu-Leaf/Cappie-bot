@@ -4,7 +4,6 @@ const path = require('path');
 const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js');
 const { loadCommands } = require('./utils/loader');
 const voiceTracker = require('./jobs/voiceTracker');
-const { initializeDatabase } = require('./utils/database');
 const BackupManager = require('./utils/backupManager');
 const PersistentStorage = require('./utils/persistentStorage');
 
@@ -74,7 +73,7 @@ client.once('ready', async () => {
   try {
     // Initialize enhanced database system
     console.log('[STARTUP] Initializing database system...');
-    initializeDatabase();
+    // Đã loại bỏ initializeDatabase vì không còn dùng nữa
     
     // Initialize and start backup system
     console.log('[STARTUP] Initializing backup system...');
