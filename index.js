@@ -5,6 +5,7 @@ const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js'
 const { loadCommands } = require('./utils/loader');
 const BackupManager = require('./utils/backupManager');
 const PersistentStorage = require('./utils/persistentStorage');
+const { startVoiceRewardJob } = require('./jobs/voiceTracker');
 
 // Tạo client
 const client = new Client({
@@ -88,6 +89,7 @@ client.once('ready', async () => {
     client.persistentStorage = persistentStorage; // Make it available globally
     
     // Đã loại bỏ voiceTracker.start vì không còn dùng nữa
+    startVoiceRewardJob();
     
     console.log('[STARTUP] Bot startup completed successfully!');
   } catch (error) {
