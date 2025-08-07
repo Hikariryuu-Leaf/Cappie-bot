@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { loadJSON } = require('../utils/database');
-const { userDataPath, emojiPath } = require('../config');
+const { loadUser, loadAllUsers, loadEmojis } = require('../utils/database');
 const { formatTime } = require('../utils/formatTime');
 const config = require('../config');
 const embedConfig = require('../config/embeds');
@@ -14,49 +13,41 @@ module.exports = {
   async execute(interaction) {
     try {
       const userId = interaction.user.id;
-      
-      // Load data efficiently with timeout protection
-      let users, emojiData;
+
+      // Load user và emoji từ MongoDB
+      let user, emojiData;
       try {
-        const loadPromise = Promise.all([
-          loadJSON(userDataPath),
-          loadJSON(emojiPath)
+        [user, emojiData] = await Promise.all([
+          loadUser(userId),
+          loadEmojis()
         ]);
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Load operation timed out')), 5000);
-        });
-        
-        [users, emojiData] = await Promise.race([loadPromise, timeoutPromise]);
       } catch (loadError) {
         console.error('[ERROR] Failed to load data for profile:', loadError);
         return await safeEditReply(interaction, {
           content: '❌ Không thể tải dữ liệu. Vui lòng thử lại sau.'
         });
       }
-      
-      const emoji = emojiData.emoji || config.defaultEmoji;
 
-      // Tạo user nếu chưa có
-      if (!users[userId]) {
-        users[userId] = {
-          cartridge: 0,
-          voiceTime: 0,
-          totalVoice: 0,
-          lastClaim: 0
-        };
+      // Lấy emoji mặc định
+      let emoji = config.defaultEmoji;
+      if (emojiData && emojiData.length > 0) {
+        emoji = emojiData[0].emoji || emoji;
       }
 
-      const userData = users[userId];
+      // Nếu user chưa có trong DB
+      if (!user) {
+        user = await loadUser(userId); // sẽ tự tạo user mới
+      }
 
-      // Tính top hạng theo voiceTime và cartridge - optimize for performance
-      const userEntries = Object.entries(users);
-      const sortedVoice = userEntries.sort((a, b) => (b[1].totalVoice || 0) - (a[1].totalVoice || 0));
-      const sortedCart = userEntries.sort((a, b) => (b[1].cartridge || 0) - (a[1].cartridge || 0));
+      // Lấy tất cả users để tính rank
+      const allUsers = await loadAllUsers();
+      // Sắp xếp theo totalVoice và cartridge
+      const sortedVoice = [...allUsers].sort((a, b) => (b.totalVoice || 0) - (a.totalVoice || 0));
+      const sortedCart = [...allUsers].sort((a, b) => (b.cartridge || 0) - (a.cartridge || 0));
+      const voiceRank = sortedVoice.findIndex(u => u.userId === userId) + 1;
+      const cartRank = sortedCart.findIndex(u => u.userId === userId) + 1;
 
-      const voiceRank = sortedVoice.findIndex(entry => entry[0] === userId) + 1;
-      const cartRank = sortedCart.findIndex(entry => entry[0] === userId) + 1;
-
-      const totalVoice = userData.totalVoice || 0;
+      const totalVoice = user.totalVoice || 0;
       const voiceTimeFormatted = formatTime(totalVoice);
 
       const embed = new EmbedBuilder()
@@ -66,7 +57,7 @@ module.exports = {
         .setThumbnail(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
         .setImage(embedConfig.getBanner(interaction.user.id))
         .addFields(
-          { name: `${embedConfig.emojis.profile.cartridge} Tổng Cartridge`, value: `\`${userData.cartridge} ${emoji}\``, inline: true },
+          { name: `${embedConfig.emojis.profile.cartridge} Tổng Cartridge`, value: `\`${user.cartridge || 0} ${emoji}\``, inline: true },
           { name: `${embedConfig.emojis.profile.voice} Tổng voice`, value: `\`${voiceTimeFormatted}\``, inline: true },
           { name: `${embedConfig.emojis.profile.rank} Hạng Cartridge`, value: `Top \`${cartRank}\``, inline: true },
           { name: `${embedConfig.emojis.profile.voiceRank} Hạng Voice`, value: `Top \`${voiceRank}\``, inline: true }

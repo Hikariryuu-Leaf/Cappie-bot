@@ -1,9 +1,8 @@
-const { loadJSON } = require('./database');
-const { emojiPath } = require('../config');
+const { loadEmojis } = require('./database');
 
-function getEmoji() {
-  const data = loadJSON(emojiPath);
-  return data.emoji || '🧩';
+async function getEmoji() {
+  const emojis = await loadEmojis();
+  return (emojis && emojis.length > 0) ? emojis[0].emoji : '🎁';
 }
 
 module.exports = { getEmoji };

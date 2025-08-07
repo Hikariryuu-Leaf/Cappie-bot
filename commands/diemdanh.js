@@ -1,103 +1,38 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { loadJSON, saveJSON } = require('../utils/database');
-const { userDataPath, emojiPath } = require('../config');
-const { isNitro, getNitroMultiplier } = require('../utils/isNitro');
-const config = require('../config');
-const embedConfig = require('../config/embeds');
+const { SlashCommandBuilder } = require('discord.js');
+const { loadUser, saveUser, loadEmojis } = require('../utils/database');
 const { safeEditReply } = require('../utils/interactionHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('diemdanh')
-    .setDescription('Nhận Cartridge mỗi 24h (1–100, hoặc 1–200 nếu có Nitro)'),
+    .setDescription('Điểm danh nhận thưởng mỗi ngày'),
 
   async execute(interaction) {
     try {
       const userId = interaction.user.id;
-      
-      // Load data efficiently with timeout protection
-      let users, emojiData;
-      try {
-        [users, emojiData] = await Promise.all([
-          loadJSON(userDataPath),
-          loadJSON(emojiPath)
-        ]);
-      } catch (loadError) {
-        console.error('[ERROR] Failed to load data for diemdanh:', loadError);
-        return await safeEditReply(interaction, {
-          content: '❌ Không thể tải dữ liệu. Vui lòng thử lại sau.'
-        });
-      }
-      
-      const emoji = emojiData.emoji || config.defaultEmoji;
-
-      // Tạo user nếu chưa có
-      if (!users[userId]) {
-        users[userId] = {
-          cartridge: 0,
-          voiceTime: 0,
-          totalVoice: 0,
-          lastClaim: 0
-        };
-      }
-
-      const lastClaim = users[userId].lastClaim || 0;
+      let user = await loadUser(userId);
+      const emojis = await loadEmojis();
+      const emoji = (emojis && emojis.length > 0) ? emojis[0].emoji : '🎁';
+      // Logic điểm danh
       const now = Date.now();
-      const cooldown = 24 * 60 * 60 * 1000; // 24 giờ
-
-      if (now - lastClaim < cooldown) {
-        const remaining = cooldown - (now - lastClaim);
-        const hours = Math.floor(remaining / 3600000);
-        const minutes = Math.floor((remaining % 3600000) / 60000);
-
+      const lastClaim = user.lastClaim || 0;
+      const oneDay = 24 * 60 * 60 * 1000;
+      if (now - lastClaim < oneDay) {
         return await safeEditReply(interaction, {
-          content: `${embedConfig.emojis.diemdanh.cooldown} Bạn đã điểm danh rồi. Hãy quay lại sau **${hours}h ${minutes}m**.`
+          content: `❌ Bạn đã điểm danh hôm nay rồi! Hãy quay lại sau.`
         });
       }
-
-      // Tính phần thưởng
-      const hasNitro = isNitro(interaction.member);
-      const maxReward = hasNitro ? 200 : 100;
-      const reward = Math.floor(Math.random() * maxReward) + 1;
-
-      users[userId].cartridge += reward;
-      users[userId].lastClaim = now;
-      
-      // Save data efficiently with timeout
-      try {
-        const savePromise = saveJSON(userDataPath, users);
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Save operation timed out')), 5000);
-        });
-        
-        await Promise.race([savePromise, timeoutPromise]);
-      } catch (saveError) {
-        console.error('[ERROR] Failed to save data for diemdanh:', saveError);
-        return await safeEditReply(interaction, {
-          content: '❌ Không thể lưu dữ liệu. Vui lòng thử lại sau.'
-        });
-      }
-
-      const embed = new EmbedBuilder()
-        .setColor(embedConfig.colors.success)
-        .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-        .setTitle(`${embedConfig.emojis.diemdanh.success} Điểm danh thành công!`)
-        .setDescription(`Bạn đã nhận được **${reward} Cartridge** ${emoji}!\nTổng Cartridge: **${users[userId].cartridge}**`)
-        .setThumbnail(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
-        .setImage(embedConfig.getBanner(interaction.user.id))
-        .addFields(
-          { name: `${embedConfig.emojis.diemdanh.reward} Phần thưởng`, value: `${reward} ${emoji}`, inline: true },
-          { name: `${embedConfig.emojis.diemdanh.nitro} Nitro Bonus`, value: hasNitro ? '✅ Có' : '❌ Không', inline: true },
-          { name: `${embedConfig.emojis.diemdanh.total} Tổng Cartridge`, value: `${users[userId].cartridge} ${emoji}`, inline: true }
-        )
-        .setTimestamp();
-
-      return await safeEditReply(interaction, { embeds: [embed] });
+      user.lastClaim = now;
+      user.cartridge = (user.cartridge || 0) + 10; // Thưởng 10 cartridge
+      await saveUser(user);
+      await safeEditReply(interaction, {
+        content: `✅ Điểm danh thành công! Bạn nhận được 10 ${emoji}. Tổng cartridge: **${user.cartridge}**`
+      });
     } catch (error) {
-      console.error('[ERROR] Diemdanh command error:', error);
+      console.error('Lỗi trong execute diemdanh:', error);
       try {
         await safeEditReply(interaction, {
-          content: '❌ Có lỗi xảy ra khi điểm danh. Vui lòng thử lại.'
+          content: '❌ Có lỗi xảy ra khi thực hiện lệnh điểm danh.'
         });
       } catch (replyError) {
         console.error('Không thể gửi thông báo lỗi:', replyError);

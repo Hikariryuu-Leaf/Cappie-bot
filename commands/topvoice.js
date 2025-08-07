@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { loadJSON } = require('../utils/database');
-const { userDataPath } = require('../config');
+const { loadAllUsers } = require('../utils/database');
 const { formatTime } = require('../utils/formatTime');
 const embedConfig = require('../config/embeds');
 const { safeEditReply } = require('../utils/interactionHelper');
@@ -12,14 +11,10 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      
-
-      const users = loadJSON(userDataPath);
-
-      // Sắp xếp theo voice giảm dần
-      const sorted = Object.entries(users)
-        .filter(([_, data]) => (data.totalVoice || 0) > 0)
-        .sort((a, b) => (b[1].totalVoice || 0) - (a[1].totalVoice || 0))
+      const users = await loadAllUsers();
+      const sorted = users
+        .filter(u => (u.totalVoice || 0) > 0)
+        .sort((a, b) => (b.totalVoice || 0) - (a.totalVoice || 0))
         .slice(0, 10);
 
       if (sorted.length === 0) {
@@ -28,33 +23,31 @@ module.exports = {
         });
       }
 
-    const embed = new EmbedBuilder()
-      .setTitle(`${embedConfig.emojis.top.voice} Top 10 Voice Time`)
-      .setColor(embedConfig.colors.voice)
-      .setThumbnail(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
-      .setImage(embedConfig.getBanner(interaction.user.id))
-      .setTimestamp();
+      const embed = new EmbedBuilder()
+        .setTitle(`${embedConfig.emojis.top.voice} Top 10 Voice Time`)
+        .setColor(embedConfig.colors.voice)
+        .setThumbnail(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
+        .setImage(embedConfig.getBanner(interaction.user.id))
+        .setTimestamp();
 
       let rank = 1;
-      for (const [userId, data] of sorted) {
+      for (const user of sorted) {
         try {
           // Add timeout for user fetch
-          const userPromise = interaction.client.users.fetch(userId);
+          const userPromise = interaction.client.users.fetch(user.userId);
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => reject(new Error('User fetch timeout')), 3000);
           });
-          
-          const user = await Promise.race([userPromise, timeoutPromise]);
-          const username = user.username;
-          const voiceTimeFormatted = formatTime(data.totalVoice || 0);
+          const discordUser = await Promise.race([userPromise, timeoutPromise]);
+          const username = discordUser.username;
+          const voiceTimeFormatted = formatTime(user.totalVoice || 0);
           embed.addFields({
             name: `${embedConfig.emojis.top.rank}${rank} - @${username}`,
             value: `${embedConfig.emojis.profile.voice} ${voiceTimeFormatted}`,
             inline: false
           });
         } catch (error) {
-          // If user not found, use userId as fallback
-          const voiceTimeFormatted = formatTime(data.totalVoice || 0);
+          const voiceTimeFormatted = formatTime(user.totalVoice || 0);
           embed.addFields({
             name: `${embedConfig.emojis.top.rank}${rank} - @unknown_user`,
             value: `${embedConfig.emojis.profile.voice} ${voiceTimeFormatted}`,

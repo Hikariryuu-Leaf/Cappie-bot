@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const { loadJSON, saveJSON } = require('../utils/database');
-const { shopDataPath } = require('../config');
+const { loadShop, saveShop } = require('../utils/database');
 const config = require('../config');
 
 module.exports = {
@@ -28,9 +27,17 @@ module.exports = {
     const gia = interaction.options.getInteger('gia');
 
     try {
-      const shop = loadJSON(shopDataPath);
-      shop[ten] = gia;
-      saveJSON(shopDataPath, shop);
+      let shop = await loadShop();
+      // Nếu shop rỗng, tạo mới
+      if (!Array.isArray(shop)) shop = [];
+      // Tìm item theo tên
+      let item = shop.find(i => i.name === ten);
+      if (item) {
+        item.price = gia;
+      } else {
+        shop.push({ name: ten, price: gia, itemId: ten });
+      }
+      await saveShop(shop);
 
       await interaction.reply({
         content: `✅ Đã cập nhật phần quà **${ten}** với giá **${gia}** Cartridge.`,

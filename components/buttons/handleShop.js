@@ -1,80 +1,22 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const { loadJSON } = require('../../utils/database');
-const { emojiPath, shopDataPath } = require('../../config');
-const config = require('../../config');
-const embedConfig = require('../../config/embeds');
-const { safeEditReply } = require('../../utils/interactionHelper');
+const { loadShop, loadEmojis } = require('../../utils/database');
 
 module.exports = {
   customId: 'handleShop',
-
   async execute(interaction) {
-    try {
-      // Load data with proper error handling
-      let shop, emojiData;
-      try {
-        [shop, emojiData] = await Promise.all([
-          loadJSON(shopDataPath),
-          loadJSON(emojiPath)
-        ]);
-      } catch (loadError) {
-        console.error('[ERROR] Failed to load shop data:', loadError);
-        return await safeEditReply(interaction, {
-          content: '❌ Không thể tải dữ liệu shop. Vui lòng thử lại sau.'
-        });
-      }
-
-      const emoji = emojiData.emoji || config.defaultEmoji;
-
-      const embed = new EmbedBuilder()
-        .setTitle(`${embedConfig.emojis.shop.title} Shop Đổi Quà`)
-        .setColor(embedConfig.colors.shop)
-        .setDescription('Chọn phần thưởng bạn muốn đổi từ Cartridge')
-        .setThumbnail(interaction.user.displayAvatarURL({ size: 256, format: 'png' }))
-        .setImage(embedConfig.getBanner(interaction.user.id))
-        .setFooter({ text: `Bạn có thể nhấn đổi nếu đủ Cartridge.` });
-
-      const rows = [];
-      const shopItems = Object.entries(shop);
-
-      if (shopItems.length === 0) {
-        embed.setDescription('❌ Hiện tại không có phần thưởng nào trong shop.');
-        return await safeEditReply(interaction, {
-          embeds: [embed]
-        });
-      }
-
-      shopItems.forEach(([itemName, price], index) => {
-        embed.addFields({
-          name: `${embedConfig.emojis.shop.title} ${itemName}`,
-          value: `${embedConfig.emojis.shop.price} Giá: \`${price} ${emoji}\``,
-          inline: false
-        });
-
-        // Tạo nút đổi ứng với từng phần thưởng
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`buyitem_${index}`)
-            .setLabel('Đổi')
-            .setStyle(ButtonStyle.Primary)
-        );
-        rows.push(row);
-      });
-
-      await safeEditReply(interaction, {
-        embeds: [embed],
-        components: rows
-      });
-    } catch (err) {
-      console.error('❌ Lỗi khi mở shop:', err);
-      try {
-        await safeEditReply(interaction, {
-          content: 'Đã xảy ra lỗi khi mở shop. Vui lòng thử lại sau!'
-        });
-      } catch (replyError) {
-        console.error('❌ Không thể gửi error message:', replyError);
-      }
+    // Lấy shop và emoji từ MongoDB
+    const [shop, emojis] = await Promise.all([
+      loadShop(),
+      loadEmojis()
+    ]);
+    const emoji = (emojis && emojis.length > 0) ? emojis[0].emoji : '🎁';
+    if (!shop || shop.length === 0) {
+      return interaction.reply({ content: '❌ Shop hiện đang trống.', ephemeral: true });
     }
+    let content = `**Shop hiện tại:**\n`;
+    for (const item of shop) {
+      content += `• ${item.name}: ${item.price} ${emoji}\n`;
+    }
+    await interaction.reply({ content, ephemeral: true });
   }
 };
 
