@@ -19,12 +19,22 @@ module.exports = {
     ]);
     const item = shop.find(i => i.itemId === itemId);
     if (!item) {
-      return safeEditReply(interaction, { content: '❌ Vật phẩm không tồn tại.', ephemeral: true });
+      const errorEmbed = new EmbedBuilder()
+        .setTitle('❌ Lỗi')
+        .setColor(embedConfig.colors.error)
+        .setDescription('Vật phẩm không tồn tại.')
+        .setTimestamp();
+      return safeEditReply(interaction, { embeds: [errorEmbed], ephemeral: true });
     }
     if ((user.cartridge || 0) < item.price) {
-      return safeEditReply(interaction, { content: '❌ Bạn không đủ Cartridge để mua vật phẩm này.', ephemeral: true });
+      const errorEmbed = new EmbedBuilder()
+        .setTitle('❌ Không đủ Cartridge')
+        .setColor(embedConfig.colors.error)
+        .setDescription(`Bạn cần **${item.price}** ${embedConfig.emojis.shop.price} để mua vật phẩm này.\nHiện tại: **${user.cartridge || 0}** ${embedConfig.emojis.shop.price}`)
+        .setTimestamp();
+      return safeEditReply(interaction, { embeds: [errorEmbed], ephemeral: true });
     }
-    // Đặc biệt cho Role Custom: show modal
+    // Đặc biệt cho Role Custom: chỉ show modal, không làm gì thêm
     if (item.name === 'Role Custom') {
       const modal = new ModalBuilder()
         .setCustomId(`customrole_modal_${itemId}`)
@@ -45,42 +55,97 @@ module.exports = {
       );
       return await interaction.showModal(modal);
     }
-    // Các item khác xử lý như cũ
+    // Các item khác xử lý như cũ, chỉ dùng safeEditReply
     user.cartridge -= item.price;
-    let logMsg = '';
+    let logEmbed, userEmbed;
     try {
       if (item.name === 'Role độc quyền Cartridge') {
         if (!config.exclusiveRoleId) throw new Error('Chưa cấu hình EXCLUSIVE_ROLE_ID');
         await member.roles.add(config.exclusiveRoleId);
-        logMsg = `🎉 <@${userId}> đã đổi **Role độc quyền Cartridge** (${item.price} Cartridge)`;
-        await safeEditReply(interaction, { content: `✅ Bạn đã nhận **Role độc quyền Cartridge**!`, ephemeral: true });
+        userEmbed = new EmbedBuilder()
+          .setTitle('✅ Nhận Role thành công!')
+          .setColor(embedConfig.colors.success)
+          .setDescription(`Bạn đã nhận **Role độc quyền Cartridge**!\nCartridge còn lại: **${user.cartridge}** ${embedConfig.emojis.shop.price}`)
+          .setTimestamp();
+        logEmbed = new EmbedBuilder()
+          .setTitle('🎉 Role độc quyền đã được gán')
+          .setColor(embedConfig.colors.success)
+          .addFields(
+            { name: 'User', value: `<@${userId}> (${member.user.tag})`, inline: true },
+            { name: 'Cartridge đã trừ', value: `${item.price} ${embedConfig.emojis.shop.price}`, inline: true },
+            { name: 'Cartridge còn lại', value: `${user.cartridge} ${embedConfig.emojis.shop.price}`, inline: true }
+          )
+          .setTimestamp();
       } else if (item.name === '50K tiền mặt') {
-        await safeEditReply(interaction, { content: '📩 Yêu cầu nhận 50K tiền mặt đã được ghi nhận. Admin sẽ liên hệ bạn sớm!', ephemeral: true });
-        logMsg = `💸 <@${userId}> (${member.user.tag}) vừa đổi **50K tiền mặt** (${item.price} Cartridge)`;
+        userEmbed = new EmbedBuilder()
+          .setTitle('�� Yêu cầu đã ghi nhận')
+          .setColor(embedConfig.colors.info)
+          .setDescription('Yêu cầu nhận **50K tiền mặt** đã được ghi nhận.\nAdmin sẽ liên hệ bạn sớm!')
+          .setTimestamp();
+        logEmbed = new EmbedBuilder()
+          .setTitle('💸 Yêu cầu 50K tiền mặt')
+          .setColor(embedConfig.colors.info)
+          .addFields(
+            { name: 'User', value: `<@${userId}> (${member.user.tag})`, inline: true },
+            { name: 'Cartridge đã trừ', value: `${item.price} ${embedConfig.emojis.shop.price}`, inline: true },
+            { name: 'Cartridge còn lại', value: `${user.cartridge} ${embedConfig.emojis.shop.price}`, inline: true }
+          )
+          .setTimestamp();
         if (config.ownerId) {
           const owner = await client.users.fetch(config.ownerId);
-          await owner.send(`💸 User <@${userId}> (${member.user.tag}) vừa đổi **50K tiền mặt**. Vui lòng xử lý!`);
+          await owner.send({ embeds: [logEmbed] });
         }
       } else if (item.name === 'Nitro Basic') {
-        await safeEditReply(interaction, { content: '📩 Yêu cầu nhận Nitro Basic đã được ghi nhận. Admin sẽ liên hệ bạn sớm!', ephemeral: true });
-        logMsg = `✨ <@${userId}> (${member.user.tag}) vừa đổi **Nitro Basic** (${item.price} Cartridge)`;
+        userEmbed = new EmbedBuilder()
+          .setTitle('📩 Yêu cầu đã ghi nhận')
+          .setColor(embedConfig.colors.info)
+          .setDescription('Yêu cầu nhận **Nitro Basic** đã được ghi nhận.\nAdmin sẽ liên hệ bạn sớm!')
+          .setTimestamp();
+        logEmbed = new EmbedBuilder()
+          .setTitle('✨ Yêu cầu Nitro Basic')
+          .setColor(embedConfig.colors.info)
+          .addFields(
+            { name: 'User', value: `<@${userId}> (${member.user.tag})`, inline: true },
+            { name: 'Cartridge đã trừ', value: `${item.price} ${embedConfig.emojis.shop.price}`, inline: true },
+            { name: 'Cartridge còn lại', value: `${user.cartridge} ${embedConfig.emojis.shop.price}`, inline: true }
+          )
+          .setTimestamp();
         if (config.ownerId) {
           const owner = await client.users.fetch(config.ownerId);
-          await owner.send(`✨ User <@${userId}> (${member.user.tag}) vừa đổi **Nitro Basic**. Vui lòng xử lý!`);
+          await owner.send({ embeds: [logEmbed] });
         }
       } else {
-        await safeEditReply(interaction, { content: `✅ Bạn đã mua **${item.name}** với giá **${item.price}** Cartridge!`, ephemeral: true });
-        logMsg = `🛒 <@${userId}> vừa mua **${item.name}** (${item.price} Cartridge)`;
+        userEmbed = new EmbedBuilder()
+          .setTitle('✅ Mua thành công!')
+          .setColor(embedConfig.colors.success)
+          .setDescription(`Bạn đã mua **${item.name}** với giá **${item.price}** ${embedConfig.emojis.shop.price}!\nCartridge còn lại: **${user.cartridge}** ${embedConfig.emojis.shop.price}`)
+          .setTimestamp();
+        logEmbed = new EmbedBuilder()
+          .setTitle('🛒 Mua vật phẩm')
+          .setColor(embedConfig.colors.success)
+          .addFields(
+            { name: 'User', value: `<@${userId}> (${member.user.tag})`, inline: true },
+            { name: 'Vật phẩm', value: item.name, inline: true },
+            { name: 'Cartridge đã trừ', value: `${item.price} ${embedConfig.emojis.shop.price}`, inline: true },
+            { name: 'Cartridge còn lại', value: `${user.cartridge} ${embedConfig.emojis.shop.price}`, inline: true }
+          )
+          .setTimestamp();
       }
       await saveUser(user);
+      await safeEditReply(interaction, { embeds: [userEmbed], ephemeral: true });
       if (config.logChannelId) {
         const logChannel = await client.channels.fetch(config.logChannelId).catch(() => null);
-        if (logChannel) await logChannel.send(logMsg);
+        if (logChannel) await logChannel.send({ embeds: [logEmbed] });
       }
     } catch (err) {
       user.cartridge += item.price;
       await saveUser(user);
-      await safeEditReply(interaction, { content: `❌ Đã xảy ra lỗi: ${err.message}`, ephemeral: true });
+      const errorEmbed = new EmbedBuilder()
+        .setTitle('❌ Lỗi xảy ra')
+        .setColor(embedConfig.colors.error)
+        .setDescription(`Đã xảy ra lỗi: ${err.message}`)
+        .setTimestamp();
+      await safeEditReply(interaction, { embeds: [errorEmbed], ephemeral: true });
     }
   }
 };

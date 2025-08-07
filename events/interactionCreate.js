@@ -1,6 +1,8 @@
 const { Events } = require('discord.js');
 const { safeReply, safeDefer, safeEditReply, isInteractionValid, executeWithTimeout } = require('../utils/interactionHelper');
 const errorLogger = require('../utils/errorLogger');
+const { EmbedBuilder } = require('discord.js');
+const embedConfig = require('../config/embeds');
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -214,30 +216,49 @@ module.exports = {
           require('../utils/database').loadShop()
         ]);
         const item = shop.find(i => i.itemId === itemId);
-        if (!item) return await interaction.reply({ content: '❌ Vật phẩm không tồn tại.', ephemeral: true });
-        if ((user.cartridge || 0) < item.price) return await interaction.reply({ content: '❌ Bạn không đủ Cartridge để mua vật phẩm này.', ephemeral: true });
+        if (!item) {
+          const errorEmbed = new EmbedBuilder()
+            .setTitle('❌ Lỗi')
+            .setColor(embedConfig.colors.error)
+            .setDescription('Vật phẩm không tồn tại.')
+            .setTimestamp();
+          return await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+        }
+        if ((user.cartridge || 0) < item.price) {
+          const errorEmbed = new EmbedBuilder()
+            .setTitle('❌ Không đủ Cartridge')
+            .setColor(embedConfig.colors.error)
+            .setDescription(`Bạn cần **${item.price}** ${embedConfig.emojis.shop.price} để mua vật phẩm này.\nHiện tại: **${user.cartridge || 0}** ${embedConfig.emojis.shop.price}`)
+            .setTimestamp();
+          return await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+        }
         // Lấy dữ liệu modal
         const roleName = interaction.fields.getTextInputValue('role_name');
         const roleColor = interaction.fields.getTextInputValue('role_color');
         user.cartridge -= item.price;
         await require('../utils/database').saveUser(user);
         // Tạo embed xác nhận cho user
-        const userEmbed = new (require('discord.js').EmbedBuilder)()
-          .setTitle('Yêu cầu Role Custom đã được gửi!')
+        const userEmbed = new EmbedBuilder()
+          .setTitle('📝 Yêu cầu Role Custom đã gửi!')
           .setColor(roleColor)
-          .setDescription(`Tên Role: **${roleName}**\nMàu: **${roleColor}**\n\nAdmin sẽ liên hệ bạn sớm.`)
+          .setDescription(`**Tên Role:** ${roleName}\n**Màu:** ${roleColor}\n\nAdmin sẽ liên hệ bạn sớm để tạo role.`)
+          .addFields(
+            { name: 'Cartridge đã trừ', value: `${item.price} ${embedConfig.emojis.shop.price}`, inline: true },
+            { name: 'Cartridge còn lại', value: `${user.cartridge} ${embedConfig.emojis.shop.price}`, inline: true }
+          )
           .setFooter({ text: `ID: ${userId}` })
           .setTimestamp();
         await interaction.reply({ embeds: [userEmbed], ephemeral: true });
         // Tạo embed log
-        const logEmbed = new (require('discord.js').EmbedBuilder)()
+        const logEmbed = new EmbedBuilder()
           .setTitle('📝 Yêu cầu Role Custom')
           .setColor(roleColor)
           .addFields(
-            { name: 'User', value: `<@${userId}> (${member.user.tag})`, inline: false },
+            { name: 'User', value: `<@${userId}> (${member.user.tag})`, inline: true },
             { name: 'Tên Role', value: roleName, inline: true },
             { name: 'Màu', value: roleColor, inline: true },
-            { name: 'Cartridge đã trừ', value: `${item.price}`, inline: true }
+            { name: 'Cartridge đã trừ', value: `${item.price} ${embedConfig.emojis.shop.price}`, inline: true },
+            { name: 'Cartridge còn lại', value: `${user.cartridge} ${embedConfig.emojis.shop.price}`, inline: true }
           )
           .setTimestamp();
         // Gửi log về kênh log
