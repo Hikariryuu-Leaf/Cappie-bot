@@ -41,12 +41,12 @@ module.exports = {
         .setTitle('Yêu cầu Role Custom');
       const nameInput = new TextInputBuilder()
         .setCustomId('role_name')
-        .setLabel('Tên Role bạn muốn')
+        .setLabel('Role Name:')
         .setStyle(TextInputStyle.Short)
         .setRequired(true);
       const colorInput = new TextInputBuilder()
         .setCustomId('role_color')
-        .setLabel('Màu Role (HEX, ví dụ: #ff0000)')
+        .setLabel('Color Name:')
         .setStyle(TextInputStyle.Short)
         .setRequired(true);
       modal.addComponents(
@@ -78,7 +78,7 @@ module.exports = {
           .setTimestamp();
       } else if (item.name === '50K tiền mặt') {
         userEmbed = new EmbedBuilder()
-          .setTitle('�� Yêu cầu đã ghi nhận')
+          .setTitle('📩 Yêu cầu đã ghi nhận')
           .setColor(embedConfig.colors.info)
           .setDescription('Yêu cầu nhận **50K tiền mặt** đã được ghi nhận.\nAdmin sẽ liên hệ bạn sớm!')
           .setTimestamp();
