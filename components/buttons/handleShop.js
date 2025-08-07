@@ -1,6 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { loadShop, loadEmojis } = require('../../utils/database');
 const embedConfig = require('../../config/embeds');
+const { safeEditReply } = require('../../utils/interactionHelper');
 
 module.exports = {
   customId: 'handleShop',
@@ -12,7 +13,7 @@ module.exports = {
     ]);
     const emoji = (emojis && emojis.length > 0) ? emojis[0].emoji : '🎁';
     if (!shop || shop.length === 0) {
-      return interaction.followUp({ content: '❌ Shop hiện đang trống.', ephemeral: true });
+      return await safeEditReply(interaction, { content: '❌ Shop hiện đang trống.' });
     }
     // Tạo embed
     const embed = new EmbedBuilder()
@@ -44,7 +45,6 @@ module.exports = {
       });
       rows.push(row);
     }
-    await interaction.followUp({ embeds: [embed], components: rows, ephemeral: true });
+    await safeEditReply(interaction, { embeds: [embed], components: rows });
   }
 };
-

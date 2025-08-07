@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { loadShop, saveShop } = require('../utils/database');
 const config = require('../config');
+const { safeEditReply } = require('../utils/interactionHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -17,9 +18,8 @@ module.exports = {
         .setRequired(true)),
   async execute(interaction) {
     if (interaction.user.id !== config.ownerId) {
-      return interaction.reply({ 
-        content: '❌ Bạn không có quyền sử dụng lệnh này.', 
-        flags: 64 // Ephemeral flag
+      return await safeEditReply(interaction, { 
+        content: '❌ Bạn không có quyền sử dụng lệnh này.'
       });
     }
 
@@ -39,17 +39,14 @@ module.exports = {
       }
       await saveShop(shop);
 
-      await interaction.reply({
-        content: `✅ Đã cập nhật phần quà **${ten}** với giá **${gia}** Cartridge.`,
-        flags: 64 // Ephemeral flag
+      await safeEditReply(interaction, {
+        content: `✅ Đã cập nhật phần quà **${ten}** với giá **${gia}** Cartridge.`
       });
     } catch (error) {
       console.error('Lỗi khi cập nhật shop:', error);
-      await interaction.reply({
-        content: '❌ Đã xảy ra lỗi khi cập nhật shop.',
-        flags: 64 // Ephemeral flag
+      await safeEditReply(interaction, {
+        content: '❌ Đã xảy ra lỗi khi cập nhật shop.'
       });
     }
   }
 };
-

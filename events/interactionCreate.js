@@ -222,7 +222,7 @@ module.exports = {
             .setColor(embedConfig.colors.error)
             .setDescription('Vật phẩm không tồn tại.')
             .setTimestamp();
-          return await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+          return await safeReply(interaction, { embeds: [errorEmbed], flags: 64 });
         }
         if ((user.cartridge || 0) < item.price) {
           const errorEmbed = new EmbedBuilder()
@@ -230,7 +230,7 @@ module.exports = {
             .setColor(embedConfig.colors.error)
             .setDescription(`Bạn cần **${item.price}** ${embedConfig.emojis.shop.price} để mua vật phẩm này.\nHiện tại: **${user.cartridge || 0}** ${embedConfig.emojis.shop.price}`)
             .setTimestamp();
-          return await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+          return await safeReply(interaction, { embeds: [errorEmbed], flags: 64 });
         }
         // Lấy dữ liệu modal
         const roleName = interaction.fields.getTextInputValue('role_name');
@@ -248,7 +248,7 @@ module.exports = {
           )
           .setFooter({ text: `ID: ${userId}` })
           .setTimestamp();
-        await interaction.reply({ embeds: [userEmbed], ephemeral: true });
+        await safeReply(interaction, { embeds: [userEmbed], flags: 64 });
         // Tạo embed log
         const logEmbed = new EmbedBuilder()
           .setTitle('📝 Yêu cầu Role Custom')
@@ -277,4 +277,3 @@ module.exports = {
     }
   }
 };
-
