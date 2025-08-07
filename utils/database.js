@@ -27,11 +27,12 @@ const Emoji = mongoose.model('Emoji', emojiSchema);
 
 async function loadUser(userId) {
   await connectMongo();
-  let user = await User.findOne({ userId });
-  if (!user) {
-    user = new User({ userId });
-    await user.save();
-  }
+  // Dùng findOneAndUpdate với upsert để tránh race condition duplicate
+  const user = await User.findOneAndUpdate(
+    { userId },
+    { $setOnInsert: { userId, cartridge: 0, voiceTime: 0, totalVoice: 0, lastClaim: 0 } },
+    { new: true, upsert: true }
+  );
   return user;
 }
 

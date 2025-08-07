@@ -7,7 +7,6 @@ async function connectMongo() {
   try {
     await mongoose.connect(MONGO_URI, {
       useNewUrlParser: true,
-      useUnifiedTopology: true,
       dbName: 'CappieBot',
     });
     console.log('[MONGO] Đã kết nối MongoDB!');
