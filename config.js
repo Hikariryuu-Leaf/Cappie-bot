@@ -4,9 +4,6 @@ module.exports = {
   ownerId: process.env.OWNER_ID,
   logChannelId: process.env.LOG_CHANNEL_ID,
   exclusiveRoleId: process.env.EXCLUSIVE_ROLE_ID,
-  emojiPath: './data/emojis.json',
-  userDataPath: './data/users.json',
-  shopDataPath: './data/shop.json',
   defaultEmoji: '🎁',
   voiceTrackerInterval: 10 * 60 * 1000, // 10 phút
   cartridgePerInterval: 1, // Cartridge mỗi 10 phút

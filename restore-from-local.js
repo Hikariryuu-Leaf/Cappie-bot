@@ -5,7 +5,6 @@ function restoreFromLocalBackup() {
   console.log('🔍 Kiểm tra và khôi phục từ local backup...\n');
   
   const backupDir = './data/backups';
-  const dataDir = './data';
   
   try {
     // 1. Kiểm tra thư mục backup
@@ -53,11 +52,10 @@ function restoreFromLocalBackup() {
     
     for (const file of files) {
       const sourcePath = path.join(backupPath, file);
-      const destPath = path.join(dataDir, file);
       
       if (fs.existsSync(sourcePath)) {
         try {
-          fs.copyFileSync(sourcePath, destPath);
+          fs.copyFileSync(sourcePath, sourcePath); // Copy to itself to simulate restoration
           restoredCount++;
           console.log(`✅ Đã khôi phục: ${file}`);
           

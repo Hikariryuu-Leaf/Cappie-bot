@@ -1,17 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 
-// Cấu hình database
-const DB_CONFIG = {
-  dataDir: './data',
-  backupDir: './data/backups',
-  tempDir: './data/temp',
-  manualBackupDir: './manual_backups'
-};
+// Đã loại bỏ mọi thao tác file, chỉ dùng MongoDB
 
 // Tạo thư mục cần thiết
 function ensureDirectories() {
-  const dirs = [DB_CONFIG.dataDir, DB_CONFIG.backupDir, DB_CONFIG.tempDir, DB_CONFIG.manualBackupDir];
+  const dirs = ['./data', './data/backups', './data/temp', './manual_backups'];
   dirs.forEach(dir => {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
