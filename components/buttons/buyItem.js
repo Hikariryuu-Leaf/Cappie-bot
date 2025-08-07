@@ -34,7 +34,7 @@ module.exports = {
         .setTimestamp();
       return safeEditReply(interaction, { embeds: [errorEmbed], ephemeral: true });
     }
-    // Đặc biệt cho Role Custom: chỉ show modal, không làm gì thêm
+    // Đặc biệt cho Role Custom: chỉ show modal, tuyệt đối không reply/defer gì cả
     if (item.name === 'Role Custom') {
       const modal = new ModalBuilder()
         .setCustomId(`customrole_modal_${itemId}`)
@@ -53,7 +53,8 @@ module.exports = {
         new ActionRowBuilder().addComponents(nameInput),
         new ActionRowBuilder().addComponents(colorInput)
       );
-      return await interaction.showModal(modal);
+      await interaction.showModal(modal);
+      return;
     }
     // Các item khác xử lý như cũ, chỉ dùng safeEditReply
     user.cartridge -= item.price;
