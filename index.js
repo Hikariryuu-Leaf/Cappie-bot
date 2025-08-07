@@ -5,7 +5,6 @@ const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js'
 const { loadCommands } = require('./utils/loader');
 const voiceTracker = require('./jobs/voiceTracker');
 const { initializeDatabase } = require('./utils/database');
-const { migrateData } = require('./utils/migrateData');
 const BackupManager = require('./utils/backupManager');
 const PersistentStorage = require('./utils/persistentStorage');
 
@@ -73,10 +72,6 @@ client.once('ready', async () => {
   console.log(`[READY] Bot đăng nhập với tag: ${client.user.tag}`);
   
   try {
-    // Migrate existing data to new system
-    console.log('[STARTUP] Migrating existing data...');
-    migrateData();
-    
     // Initialize enhanced database system
     console.log('[STARTUP] Initializing database system...');
     initializeDatabase();

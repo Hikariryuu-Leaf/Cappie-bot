@@ -34,6 +34,5 @@ if (require.main === module) {
 }
 
 module.exports = {
-  migrateData,
   verifyMigration
 }; 
