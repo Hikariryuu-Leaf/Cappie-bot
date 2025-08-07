@@ -200,6 +200,60 @@ module.exports = {
         throw buttonError; // Re-throw to be caught by outer catch
       }
     }
+
+    // Modal submit handler
+    else if (interaction.isModalSubmit()) {
+      if (interaction.customId.startsWith('customrole_modal_')) {
+        const itemId = interaction.customId.split('_').pop();
+        const userId = interaction.user.id;
+        const client = interaction.client;
+        const guild = interaction.guild;
+        const member = await guild.members.fetch(userId);
+        const [user, shop] = await Promise.all([
+          require('../utils/database').loadUser(userId),
+          require('../utils/database').loadShop()
+        ]);
+        const item = shop.find(i => i.itemId === itemId);
+        if (!item) return await interaction.reply({ content: '❌ Vật phẩm không tồn tại.', ephemeral: true });
+        if ((user.cartridge || 0) < item.price) return await interaction.reply({ content: '❌ Bạn không đủ Cartridge để mua vật phẩm này.', ephemeral: true });
+        // Lấy dữ liệu modal
+        const roleName = interaction.fields.getTextInputValue('role_name');
+        const roleColor = interaction.fields.getTextInputValue('role_color');
+        user.cartridge -= item.price;
+        await require('../utils/database').saveUser(user);
+        // Tạo embed xác nhận cho user
+        const userEmbed = new (require('discord.js').EmbedBuilder)()
+          .setTitle('Yêu cầu Role Custom đã được gửi!')
+          .setColor(roleColor)
+          .setDescription(`Tên Role: **${roleName}**\nMàu: **${roleColor}**\n\nAdmin sẽ liên hệ bạn sớm.`)
+          .setFooter({ text: `ID: ${userId}` })
+          .setTimestamp();
+        await interaction.reply({ embeds: [userEmbed], ephemeral: true });
+        // Tạo embed log
+        const logEmbed = new (require('discord.js').EmbedBuilder)()
+          .setTitle('📝 Yêu cầu Role Custom')
+          .setColor(roleColor)
+          .addFields(
+            { name: 'User', value: `<@${userId}> (${member.user.tag})`, inline: false },
+            { name: 'Tên Role', value: roleName, inline: true },
+            { name: 'Màu', value: roleColor, inline: true },
+            { name: 'Cartridge đã trừ', value: `${item.price}`, inline: true }
+          )
+          .setTimestamp();
+        // Gửi log về kênh log
+        const config = require('../config');
+        if (config.logChannelId) {
+          const logChannel = await client.channels.fetch(config.logChannelId).catch(() => null);
+          if (logChannel) await logChannel.send({ embeds: [logEmbed] });
+        }
+        // DM owner
+        if (config.ownerId) {
+          const owner = await client.users.fetch(config.ownerId);
+          await owner.send({ embeds: [logEmbed] });
+        }
+        return;
+      }
+    }
   }
 };
 
