@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema({
   voiceTime: { type: Number, default: 0 },
   totalVoice: { type: Number, default: 0 },
   lastClaim: { type: Number, default: 0 },
+  joinTime: { type: Number, default: null }, // Thời điểm vào voice
   // Thêm các trường khác nếu cần
 }, { minimize: false });
 
@@ -68,7 +69,7 @@ async function saveEmojis(emojis) {
   await Emoji.insertMany(emojis);
 }
 
-module.exports = {
+module.exports = { 
   loadUser,
   saveUser,
   loadAllUsers,
