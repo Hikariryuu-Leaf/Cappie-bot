@@ -4,6 +4,18 @@ const { safeEditReply } = require('../utils/interactionHelper');
 const embedConfig = require('../config/embeds');
 const { formatMilliseconds } = require('../utils/formatTime');
 
+// Helper function to check if server has active boost
+function hasServerBoost(guild) {
+  return guild.premiumSubscriptionCount > 0;
+}
+
+// Helper function to generate random cartridge amount
+function getRandomCartridgeAmount(hasBoost) {
+  const min = 1;
+  const max = hasBoost ? 200 : 100;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('diemdanh')
@@ -28,11 +40,20 @@ module.exports = {
           .setTimestamp();
         return await safeEditReply(interaction, { embeds: [embed] });
       }
+      // Check if server has boost and calculate random reward
+      const guild = interaction.guild;
+      const hasBoost = hasServerBoost(guild);
+      const cartridgeReward = getRandomCartridgeAmount(hasBoost);
+
       user.lastClaim = now;
-      user.cartridge = (user.cartridge || 0) + 10; // Thưởng 10 cartridge
+      user.cartridge = (user.cartridge || 0) + cartridgeReward;
       await saveUser(user);
+
+      // Create enhanced success message with boost info
+      const boostInfo = hasBoost ? `\n🚀 **Server Boost Active!** Increased reward range (1-200)` : `\n📦 Standard reward range (1-100)`;
+
       await safeEditReply(interaction, {
-        content: `✅ Điểm danh thành công! Bạn nhận được 10 ${emoji}. Tổng cartridge: **${user.cartridge}**`
+        content: `✅ Điểm danh thành công! Bạn nhận được **${cartridgeReward}** ${emoji}.${boostInfo}\n💰 Tổng cartridge: **${user.cartridge}**`
       });
     } catch (error) {
       console.error('Lỗi trong execute diemdanh:', error);

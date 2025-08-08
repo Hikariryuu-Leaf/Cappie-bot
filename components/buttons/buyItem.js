@@ -3,6 +3,7 @@ const { loadUser, saveUser, loadShop } = require('../../utils/database');
 const config = require('../../config');
 const embedConfig = require('../../config/embeds');
 const { safeEditReply } = require('../../utils/interactionHelper');
+const { validateColor, getAvailableColors } = require('../../utils/colorValidator');
 
 module.exports = {
   customIdRegex: /^buyitem_(.+)$/,
@@ -34,25 +35,45 @@ module.exports = {
         .setTimestamp();
       return safeEditReply(interaction, { embeds: [errorEmbed], ephemeral: true });
     }
-    // Đặc biệt cho Role Custom: chỉ show modal, tuyệt đối không reply/defer gì cả
+    // Enhanced Custom Role Exchange with improved modal
     if (item.name === 'Role Custom') {
       const modal = new ModalBuilder()
         .setCustomId(`customrole_modal_${itemId}`)
-        .setTitle('Yêu cầu Role Custom');
+        .setTitle('🎨 Custom Role Exchange Request');
+
       const nameInput = new TextInputBuilder()
         .setCustomId('role_name')
-        .setLabel('Role Name:')
+        .setLabel('Role Name')
+        .setPlaceholder('Enter your desired role name (e.g., "VIP Member", "Cool Guy")')
         .setStyle(TextInputStyle.Short)
+        .setMinLength(1)
+        .setMaxLength(100)
         .setRequired(true);
+
       const colorInput = new TextInputBuilder()
         .setCustomId('role_color')
-        .setLabel('Color Name:')
+        .setLabel('Role Color')
+        .setPlaceholder('hex (#FF0000), rgb (rgb(255,0,0)), or name (red, blue, purple)')
         .setStyle(TextInputStyle.Short)
+        .setMinLength(3)
+        .setMaxLength(50)
         .setRequired(true);
+
+      // Add a description field for additional details
+      const descriptionInput = new TextInputBuilder()
+        .setCustomId('role_description')
+        .setLabel('Additional Notes (Optional)')
+        .setPlaceholder('Any special requests or additional information...')
+        .setStyle(TextInputStyle.Paragraph)
+        .setMaxLength(500)
+        .setRequired(false);
+
       modal.addComponents(
         new ActionRowBuilder().addComponents(nameInput),
-        new ActionRowBuilder().addComponents(colorInput)
+        new ActionRowBuilder().addComponents(colorInput),
+        new ActionRowBuilder().addComponents(descriptionInput)
       );
+
       await interaction.showModal(modal);
       return;
     }

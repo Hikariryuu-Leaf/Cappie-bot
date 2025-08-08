@@ -3,6 +3,7 @@ const { safeReply, safeDefer, safeEditReply, isInteractionValid, executeWithTime
 const errorLogger = require('../utils/errorLogger');
 const { EmbedBuilder } = require('discord.js');
 const embedConfig = require('../config/embeds');
+const { validateColor, formatColorDisplay, hexToDecimal } = require('../utils/colorValidator');
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -38,7 +39,7 @@ module.exports = {
       if (isInteractionValid(interaction)) {
         try {
           await safeReply(interaction, { 
-            content: 'Đã xảy ra lỗi khi xử lý lệnh.', 
+            content: 'Đã xảy ra lỗi khi xử lý lệnh.',
             flags: 64 // Ephemeral flag
           });
         } catch (replyError) {
@@ -232,45 +233,114 @@ module.exports = {
             .setTimestamp();
           return await safeReply(interaction, { embeds: [errorEmbed], flags: 64 });
         }
-        // Lấy dữ liệu modal
-        const roleName = interaction.fields.getTextInputValue('role_name');
-        const roleColor = interaction.fields.getTextInputValue('role_color');
+        // Get modal data with enhanced validation
+        const roleName = interaction.fields.getTextInputValue('role_name').trim();
+        const roleColorInput = interaction.fields.getTextInputValue('role_color').trim();
+        const roleDescription = interaction.fields.getTextInputValue('role_description')?.trim() || '';
+
+        // Validate role name
+        if (!roleName || roleName.length < 1 || roleName.length > 100) {
+          const errorEmbed = new EmbedBuilder()
+            .setTitle('❌ Invalid Role Name')
+            .setColor(embedConfig.colors.error)
+            .setDescription('Role name must be between 1 and 100 characters.')
+            .setTimestamp();
+          return await safeReply(interaction, { embeds: [errorEmbed], flags: 64 });
+        }
+
+        // Validate color
+        const colorValidation = validateColor(roleColorInput);
+        if (!colorValidation.valid) {
+          const errorEmbed = new EmbedBuilder()
+            .setTitle('❌ Invalid Color')
+            .setColor(embedConfig.colors.error)
+            .setDescription(`${colorValidation.error}\n\nExamples:\n• Hex: #FF0000, #00FF00\n• RGB: rgb(255,0,0)\n• Names: red, blue, purple, discord_blue`)
+            .setTimestamp();
+          return await safeReply(interaction, { embeds: [errorEmbed], flags: 64 });
+        }
+
+        const processedColor = colorValidation.color;
+        const colorDecimal = hexToDecimal(processedColor);
+
+        // Deduct cartridge and save user
         user.cartridge -= item.price;
         await require('../utils/database').saveUser(user);
-        // Tạo embed xác nhận cho user
+
+        // Create enhanced confirmation embed for user
         const userEmbed = new EmbedBuilder()
-          .setTitle('📝 Yêu cầu Role Custom đã gửi!')
-          .setColor(roleColor)
-          .setDescription(`**Tên Role:** ${roleName}\n**Màu:** ${roleColor}\n\nAdmin sẽ liên hệ bạn sớm để tạo role.`)
+          .setTitle('🎨 Custom Role Request Submitted!')
+          .setColor(colorDecimal)
+          .setDescription(`Your custom role request has been submitted successfully!`)
           .addFields(
-            { name: 'Cartridge đã trừ', value: `${item.price} ${embedConfig.emojis.shop.price}`, inline: true },
-            { name: 'Cartridge còn lại', value: `${user.cartridge} ${embedConfig.emojis.shop.price}`, inline: true }
+            { name: '🏷️ Role Name', value: `\`${roleName}\``, inline: true },
+            { name: '🎨 Color', value: formatColorDisplay(roleColorInput, processedColor), inline: true },
+            { name: '💰 Cost', value: `${item.price} ${embedConfig.emojis.shop.price}`, inline: true },
+            { name: '💳 Remaining Balance', value: `${user.cartridge} ${embedConfig.emojis.shop.price}`, inline: true }
           )
-          .setFooter({ text: `ID: ${userId}` })
+          .setFooter({ text: `Request ID: ${userId} | Admin will contact you soon` })
           .setTimestamp();
-        await safeReply(interaction, { embeds: [userEmbed], flags: 64 });
-        // Tạo embed log
-        const logEmbed = new EmbedBuilder()
-          .setTitle('📝 Yêu cầu Role Custom')
-          .setColor(roleColor)
-          .addFields(
-            { name: 'User', value: `<@${userId}> (${member.user.tag})`, inline: true },
-            { name: 'Tên Role', value: roleName, inline: true },
-            { name: 'Màu', value: roleColor, inline: true },
-            { name: 'Cartridge đã trừ', value: `${item.price} ${embedConfig.emojis.shop.price}`, inline: true },
-            { name: 'Cartridge còn lại', value: `${user.cartridge} ${embedConfig.emojis.shop.price}`, inline: true }
-          )
-          .setTimestamp();
-        // Gửi log về kênh log
-        const config = require('../config');
-        if (config.logChannelId) {
-          const logChannel = await client.channels.fetch(config.logChannelId).catch(() => null);
-          if (logChannel) await logChannel.send({ embeds: [logEmbed] });
+
+        if (roleDescription) {
+          userEmbed.addFields({ name: '📝 Additional Notes', value: roleDescription, inline: false });
         }
-        // DM owner
+
+        await safeReply(interaction, { embeds: [userEmbed], flags: 64 });
+        // Create enhanced log embed for admin
+        const logEmbed = new EmbedBuilder()
+          .setTitle('🎨 New Custom Role Request')
+          .setColor(colorDecimal)
+          .setDescription('A user has requested a custom role. Please review and create the role.')
+          .addFields(
+            { name: '👤 User', value: `<@${userId}> (${member.user.tag})`, inline: true },
+            { name: '🆔 User ID', value: userId, inline: true },
+            { name: '🏷️ Requested Role Name', value: `\`${roleName}\``, inline: true },
+            { name: '🎨 Requested Color', value: formatColorDisplay(roleColorInput, processedColor) + '\n`' + processedColor + '` (' + colorDecimal + ')', inline: true },
+            { name: '💰 Cartridge Paid', value: `${item.price} ${embedConfig.emojis.shop.price}`, inline: true },
+            { name: '💳 User\'s Remaining Balance', value: `${user.cartridge} ${embedConfig.emojis.shop.price}`, inline: true }
+          )
+          .setThumbnail(member.user.displayAvatarURL({ size: 128 }))
+          .setFooter({ text: `Server: ${guild.name} | Request Time` })
+          .setTimestamp();
+
+        if (roleDescription) {
+          logEmbed.addFields({ name: '📝 Additional Notes', value: roleDescription, inline: false });
+        }
+
+        // Add quick action instructions for admin
+        logEmbed.addFields({
+          name: '⚡ Quick Actions',
+          value: `• Create role with name: \`${roleName}\`\n• Set color to: \`${processedColor}\`\n• Assign to: <@${userId}>`,
+          inline: false
+        });
+
+        const config = require('../config');
+
+        // Send to log channel
+        if (config.logChannelId) {
+          try {
+            const logChannel = await client.channels.fetch(config.logChannelId);
+            if (logChannel) {
+              await logChannel.send({
+                content: `🚨 **New Custom Role Request** from <@${userId}>`,
+                embeds: [logEmbed]
+              });
+            }
+          } catch (error) {
+            console.error('Failed to send to log channel:', error);
+          }
+        }
+
+        // Enhanced DM to owner
         if (config.ownerId) {
-          const owner = await client.users.fetch(config.ownerId);
-          await owner.send({ embeds: [logEmbed] });
+          try {
+            const owner = await client.users.fetch(config.ownerId);
+            await owner.send({
+              content: `🎨 **New Custom Role Request**\n\nA user has requested a custom role in **${guild.name}**. Please review the details below:`,
+              embeds: [logEmbed]
+            });
+          } catch (error) {
+            console.error('Failed to send DM to owner:', error);
+          }
         }
         return;
       }
