@@ -5,6 +5,22 @@ const { EmbedBuilder } = require('discord.js');
 const embedConfig = require('../config/embeds');
 const { validateColor, formatColorDisplay, hexToDecimal } = require('../utils/colorValidator');
 
+// Helper function to check if a buyitem button is for Custom Role Exchange
+async function isCustomRoleItem(interaction) {
+  try {
+    if (!interaction.customId.startsWith('buyitem_')) return false;
+
+    const itemId = interaction.customId.split('_')[1];
+    const shop = await require('../utils/database').loadShop();
+    const item = shop.find(i => i.itemId === itemId);
+
+    return item && item.name === 'Role Custom';
+  } catch (error) {
+    console.error('Error checking if item is Custom Role:', error);
+    return false;
+  }
+}
+
 module.exports = {
   name: Events.InteractionCreate,
   
@@ -124,17 +140,25 @@ module.exports = {
         return;
       }
 
-      // Defer reply for button interactions too
-      const deferred = await safeDefer(interaction, { flags: 64 });
-      
-      // If defer failed, don't proceed with button execution
-      if (!deferred) {
-        console.warn(`[WARN] Failed to defer interaction for button: ${interaction.customId}`);
-        errorLogger.logInteraction(interaction, 'button_defer_failed', false, new Error('Failed to defer button interaction'));
-        return;
-      }
+      // Check if this is a Custom Role Exchange button - these need to show modals and cannot be deferred
+      const isCustomRoleButton = interaction.customId.startsWith('buyitem_') && await isCustomRoleItem(interaction);
 
-      errorLogger.logInteraction(interaction, 'button_defer_success', true);
+      // Defer reply for button interactions (except Custom Role Exchange)
+      let deferred = true;
+      if (!isCustomRoleButton) {
+        deferred = await safeDefer(interaction, { flags: 64 });
+
+        // If defer failed, don't proceed with button execution
+        if (!deferred) {
+          console.warn(`[WARN] Failed to defer interaction for button: ${interaction.customId}`);
+          errorLogger.logInteraction(interaction, 'button_defer_failed', false, new Error('Failed to defer button interaction'));
+          return;
+        }
+        errorLogger.logInteraction(interaction, 'button_defer_success', true);
+      } else {
+        console.log(`[INFO] Skipping defer for Custom Role Exchange button: ${interaction.customId}`);
+        errorLogger.logInteraction(interaction, 'custom_role_no_defer', true);
+      }
 
       const [baseId] = interaction.customId.split('_');
       const handler = interaction.client.components.get(baseId);
@@ -164,6 +188,17 @@ module.exports = {
               } catch (editError) {
                 console.error(`[ERROR] Failed to send error message for button ${interaction.customId}:`, editError);
                 errorLogger.logError(editError, { context: 'button_error_message_failed' });
+              }
+            } else if (!interaction.replied && !interaction.deferred) {
+              // Handle non-deferred interactions (like Custom Role Exchange)
+              try {
+                await safeReply(interaction, {
+                  content: 'Đã xảy ra lỗi khi xử lý nút.',
+                  flags: 64
+                });
+              } catch (editError) {
+                console.error(`[ERROR] Failed to send error message for non-deferred button ${interaction.customId}:`, editError);
+                errorLogger.logError(editError, { context: 'buyitem_error_message_failed_non_deferred' });
               }
             }
             
@@ -197,6 +232,17 @@ module.exports = {
           } catch (editError) {
             console.error(`[ERROR] Failed to send error message for button ${interaction.customId}:`, editError);
             errorLogger.logError(editError, { context: 'button_error_message_failed' });
+          }
+        } else if (!interaction.replied && !interaction.deferred) {
+          // Handle non-deferred interactions (like Custom Role Exchange)
+          try {
+            await safeReply(interaction, {
+              content: 'Đã xảy ra lỗi khi xử lý nút.',
+              flags: 64
+            });
+          } catch (editError) {
+            console.error(`[ERROR] Failed to send error message for non-deferred button ${interaction.customId}:`, editError);
+            errorLogger.logError(editError, { context: 'button_error_message_failed_non_deferred' });
           }
         }
         

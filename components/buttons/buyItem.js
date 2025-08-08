@@ -2,8 +2,17 @@ const { EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowB
 const { loadUser, saveUser, loadShop } = require('../../utils/database');
 const config = require('../../config');
 const embedConfig = require('../../config/embeds');
-const { safeEditReply } = require('../../utils/interactionHelper');
+const { safeEditReply, safeReply } = require('../../utils/interactionHelper');
 const { validateColor, getAvailableColors } = require('../../utils/colorValidator');
+
+// Helper function to safely respond to interaction (handles both deferred and non-deferred)
+async function safeRespond(interaction, options) {
+  if (interaction.deferred) {
+    return await safeEditReply(interaction, options);
+  } else {
+    return await safeReply(interaction, options);
+  }
+}
 
 module.exports = {
   customIdRegex: /^buyitem_(.+)$/,
@@ -25,7 +34,7 @@ module.exports = {
         .setColor(embedConfig.colors.error)
         .setDescription('Vật phẩm không tồn tại.')
         .setTimestamp();
-      return safeEditReply(interaction, { embeds: [errorEmbed], ephemeral: true });
+      return safeRespond(interaction, { embeds: [errorEmbed], ephemeral: true });
     }
     if ((user.cartridge || 0) < item.price) {
       const errorEmbed = new EmbedBuilder()
@@ -33,10 +42,12 @@ module.exports = {
         .setColor(embedConfig.colors.error)
         .setDescription(`Bạn cần **${item.price}** ${embedConfig.emojis.shop.price} để mua vật phẩm này.\nHiện tại: **${user.cartridge || 0}** ${embedConfig.emojis.shop.price}`)
         .setTimestamp();
-      return safeEditReply(interaction, { embeds: [errorEmbed], ephemeral: true });
+      return safeRespond(interaction, { embeds: [errorEmbed], ephemeral: true });
     }
     // Enhanced Custom Role Exchange with improved modal
     if (item.name === 'Role Custom') {
+      console.log(`[DEBUG] Custom Role Exchange - Interaction deferred: ${interaction.deferred}, replied: ${interaction.replied}`);
+
       const modal = new ModalBuilder()
         .setCustomId(`customrole_modal_${itemId}`)
         .setTitle('🎨 Custom Role Exchange Request');
@@ -154,7 +165,7 @@ module.exports = {
           .setTimestamp();
       }
       await saveUser(user);
-      await safeEditReply(interaction, { embeds: [userEmbed], ephemeral: true });
+      await safeRespond(interaction, { embeds: [userEmbed], ephemeral: true });
       if (config.logChannelId) {
         const logChannel = await client.channels.fetch(config.logChannelId).catch(() => null);
         if (logChannel) await logChannel.send({ embeds: [logEmbed] });
@@ -167,7 +178,7 @@ module.exports = {
         .setColor(embedConfig.colors.error)
         .setDescription(`Đã xảy ra lỗi: ${err.message}`)
         .setTimestamp();
-      await safeEditReply(interaction, { embeds: [errorEmbed], ephemeral: true });
+      await safeRespond(interaction, { embeds: [errorEmbed], ephemeral: true });
     }
   }
 };
