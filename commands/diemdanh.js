@@ -49,12 +49,33 @@ module.exports = {
       user.cartridge = (user.cartridge || 0) + cartridgeReward;
       await saveUser(user);
 
-      // Create enhanced success message with boost info
-      const boostInfo = hasBoost ? `\n🚀 **Server Boost Active!** Increased reward range (1-200)` : `\n📦 Standard reward range (1-100)`;
+      // Create enhanced success embed with boost info and proper emoji
+      const successEmbed = new EmbedBuilder()
+        .setTitle(`${embedConfig.emojis.diemdanh.success} Điểm danh thành công!`)
+        .setColor(embedConfig.colors.success)
+        .setDescription(`Bạn đã nhận được phần thưởng điểm danh hôm nay!`)
+        .addFields(
+          {
+            name: `${embedConfig.emojis.diemdanh.reward} Phần thưởng nhận được`,
+            value: `**${cartridgeReward}** ${emoji}`,
+            inline: true
+          },
+          {
+            name: `${embedConfig.emojis.diemdanh.total} Tổng Cartridge`,
+            value: `**${user.cartridge}** ${emoji}`,
+            inline: true
+          },
+          {
+            name: hasBoost ? `${embedConfig.emojis.diemdanh.nitro} Server Boost` : '📦 Reward Range',
+            value: hasBoost ? 'Active! (1-200 range)' : 'Standard (1-100 range)',
+            inline: true
+          }
+        )
+        .setThumbnail(interaction.user.displayAvatarURL({ size: 128 }))
+        .setFooter({ text: 'Quay lại vào ngày mai để nhận thưởng tiếp!' })
+        .setTimestamp();
 
-      await safeEditReply(interaction, {
-        content: `✅ Điểm danh thành công! Bạn nhận được **${cartridgeReward}** ${emoji}.${boostInfo}\n💰 Tổng cartridge: **${user.cartridge}**`
-      });
+      await safeEditReply(interaction, { embeds: [successEmbed] });
     } catch (error) {
       console.error('Lỗi trong execute diemdanh:', error);
       try {

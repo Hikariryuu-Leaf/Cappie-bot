@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { loadUser, loadAllUsers, loadEmojis } = require('../utils/database');
 const { formatTime } = require('../utils/formatTime');
+const { formatVoiceTime, getTotalVoiceTime, getCurrentSessionDuration } = require('../utils/voiceTimeFormatter');
 const config = require('../config');
 const embedConfig = require('../config/embeds');
 const { safeEditReply } = require('../utils/interactionHelper');
@@ -47,12 +48,14 @@ module.exports = {
       const voiceRank = sortedVoice.findIndex(u => u.userId === userId) + 1;
       const cartRank = sortedCart.findIndex(u => u.userId === userId) + 1;
 
-      let totalVoice = user.totalVoice || 0;
-      if (user.joinTime && typeof user.joinTime === 'number' && user.joinTime > 0) {
-        totalVoice += Date.now() - user.joinTime;
-      }
-      const totalVoiceMinutes = Math.floor(totalVoice / 60000);
-      const voiceTimeFormatted = formatTime(totalVoiceMinutes);
+      // Enhanced voice time calculation
+      const totalVoiceTime = getTotalVoiceTime(user.totalVoice, user.joinTime);
+      const currentSessionTime = getCurrentSessionDuration(user.joinTime);
+      const isInVoice = user.joinTime && typeof user.joinTime === 'number' && user.joinTime > 0;
+
+      // Format voice times
+      const totalVoiceFormatted = formatVoiceTime(totalVoiceTime);
+      const currentSessionFormatted = isInVoice ? formatVoiceTime(currentSessionTime) : null;
 
       const embed = new EmbedBuilder()
         .setColor(embedConfig.colors.profile)
@@ -62,10 +65,19 @@ module.exports = {
         .setImage(embedConfig.getBanner(interaction.user.id))
         .addFields(
           { name: `${embedConfig.emojis.profile.cartridge} Tổng Cartridge`, value: `\`${user.cartridge || 0} ${emoji}\``, inline: true },
-          { name: `${embedConfig.emojis.profile.voice} Tổng voice`, value: `\`${voiceTimeFormatted}\``, inline: true },
+          { name: `${embedConfig.emojis.profile.voice} Tổng Voice Time`, value: `\`${totalVoiceFormatted}\``, inline: true },
           { name: `${embedConfig.emojis.profile.rank} Hạng Cartridge`, value: `Top \`${cartRank}\``, inline: true },
           { name: `${embedConfig.emojis.profile.voiceRank} Hạng Voice`, value: `Top \`${voiceRank}\``, inline: true }
         );
+
+      // Add current session info if user is in voice
+      if (isInVoice && currentSessionFormatted) {
+        embed.addFields({
+          name: '🎙️ Current Voice Session',
+          value: `\`${currentSessionFormatted}\` (ongoing)`,
+          inline: true
+        });
+      }
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
